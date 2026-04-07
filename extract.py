@@ -1,0 +1,61 @@
+import osmium
+import pandas as pd
+import math
+
+# Fonction mathématique pour calculer la distance en mètres entre deux points GPS
+def distance(lat1, lon1, lat2, lon2):
+    R = 6371000 # Rayon de la Terre en mètres
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi, dlam = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
+    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlam/2)**2
+    return R * (2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))
+
+# La classe qui va lire le fichier PBF
+class MapHandler(osmium.SimpleHandler):
+    def __init__(self):
+        osmium.SimpleHandler.__init__(self)
+        self.nodes = {}
+        self.edges = []
+        # On ne garde que les routes principales pour les voitures
+        self.valid_highways = {'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'unclassified', 'residential'}
+
+    def node(self, n):
+        # On mémorise la position de chaque intersection
+        self.nodes[n.id] = (n.location.lat, n.location.lon)
+
+    def way(self, w):
+        # On analyse les routes
+        if 'highway' in w.tags and w.tags['highway'] in self.valid_highways:
+            # On découpe la route en petits segments entre chaque intersection
+            for i in range(len(w.nodes) - 1):
+                n1 = w.nodes[i].ref
+                n2 = w.nodes[i+1].ref
+                if n1 in self.nodes and n2 in self.nodes:
+                    dist = distance(self.nodes[n1][0], self.nodes[n1][1], self.nodes[n2][0], self.nodes[n2][1])
+                    self.edges.append((n1, n2, dist))
+
+print("1. Lecture du fichier PBF (cela va prendre quelques minutes)...")
+handler = MapHandler()
+# ATTENTION : vérifie que le nom du fichier correspond bien au tien
+handler.apply_file("ile-de-france-260403.osm.pbf")
+
+print(f"2. {len(handler.edges)} routes trouvées. Création des identifiants (0 à N)...")
+edges_df = pd.DataFrame(handler.edges, columns=['u', 'v', 'length'])
+
+# On crée des ID propres (0, 1, 2...) pour le programme C
+unique_nodes = pd.unique(edges_df[['u', 'v']].values.ravel('K'))
+mapping = {osm_id: new_id for new_id, osm_id in enumerate(unique_nodes)}
+
+edges_df['u_mapped'] = edges_df['u'].map(mapping)
+edges_df['v_mapped'] = edges_df['v'].map(mapping)
+
+print("3. Sauvegarde des fichiers...")
+# Fichier des arêtes
+edges_df[['u_mapped', 'v_mapped', 'length']].to_csv("edges.txt", sep=' ', index=False, header=False)
+
+# Fichier des noeuds
+nodes_data = [(mapping[n_id], handler.nodes[n_id][0], handler.nodes[n_id][1]) for n_id in unique_nodes]
+nodes_df = pd.DataFrame(nodes_data, columns=['id_mapped', 'lat', 'lon']).sort_values('id_mapped')
+nodes_df.to_csv("nodes.txt", sep=' ', index=False, header=False)
+
+print("Fini ! Tu as maintenant tes fichiers edges.txt et nodes.txt.")
