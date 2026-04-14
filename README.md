@@ -44,13 +44,19 @@ Elle consiste à "aplatir" le graphe dans deux tableaux contigus en mémoire.
 
 Dans une approche classique, chaque arête stocke son point de départ, sa cible et son poids (u, v, w). Le CSR nous permet de supprimer le point de départ de chaque arête en regroupant les voisins d'un même nœud de manière contiguë.
 
-Par exemple : nœud 0 relié au nœud 1 (poids 5) et au nœud 2 (poids 8).
-  - Approche classique : On stocke (0, 1, 5) et (0, 2, 8) -> 6 valeurs.
-  - Approche CSR : On stocke uniquement les cibles et poids (1, 5) et (2, 8) -> 4 valeurs.
+Par exemple, admettons qu'on ait :
+        1- nœud 0 relié au nœud 1 (poids 5) et au nœud 2 (poids 8) 
+        2- nœud 1 relié au nœud 2 (poids 3)
+        3- nœud 2 relié nulle part
+  - Approche classique pour 0 : On stocke (0, 1, 5) et (0, 2, 8) -> 6 valeurs.
+  - Approche CSR pour 0 : On stocke uniquement les cibles et poids (1, 5) et (2, 8) -> 4 valeurs.
 
 Sur un graphe de plusieurs millions d'arêtes, nous économisons ainsi 33% de mémoire vive en supprimant la redondance du nœud source.
 
-+ Accélération de l'accès aux voisins : pour retrouver ces voisins sans stocker la source, nous utilisons un tableau d'index appelé first_edge (= offsets). La contiguïté mémoire permet au processeur de charger les blocs de voisins directement dans son cache (Prefetching spatial), garantissant une itération sur les voisins extrêmement rapide et un accès direct en O(1). Dans notre exemple, first_edge[0]=1;first_edge[1]=2;first_edge[2]=3. 
++ Accélération de l'accès aux voisins : pour retrouver ces voisins sans stocker la source, nous utilisons un tableau d'index appelé first_edge (= offsets). Il répond à la question "où commencent les voisins de mon noeud courant ?". La contiguïté mémoire permet au processeur de charger les blocs de voisins directement dans son cache (Prefetching spatial), garantissant une itération sur les voisins extrêmement rapide et un accès direct en O(1). Dans notre exemple, first_edge[0]=0; first_edge[1]=2; first_edge[2]=3. Si on veut les voisins du nœud 0 :
+  - Début : first_edge[0] = 0
+  - Fin : first_edge[1] = 2
+  - Donc on lit les cases 0 et 1 (on exclut la borne de fin 2). On obtient bien les deux arêtes du nœud 0.
 
 Ainsi on a :
 * `edges` : Un tableau unique regroupant **toutes** les arêtes du graphe (destination + poids).
@@ -67,12 +73,13 @@ Ainsi on a :
 -----------
 
 
-### Construction en 3 Passes
-Puisque la taille des tableaux C doit être connue à la compilation ou allouée dynamiquement, le chargement du fichier s'effectue obligatoirement en trois passes optimisées :
-1. **Évaluation :** Lecture du fichier pour identifier l'ID maximal ($N$ nœuds) et compter le total des arêtes, permettant une allocation mémoire (`malloc`) exacte et sans gaspillage.
+### Construction en 3 étapes
+Puisque la taille des tableaux C doit être connue à la compilation ou allouée dynamiquement, le chargement du fichier s'effectue obligatoirement en trois étapes :
+1. **Évaluation :** Lecture du fichier pour identifier l'ID maximal ($N$ nœuds) et compter le total des arêtes, permettant une allocation mémoire (`malloc`) sans gaspillage.
 2. **Calcul des Degrés :** Comptage du nombre d'arêtes sortantes pour chaque nœud, puis transformation de ces degrés en tableau d'index (offsets) via une somme préfixe.
 3. **Peuplement :** Remplissage définitif du grand tableau `edges` en utilisant les offsets calculés.
 
+--------------------------------------------
 
 # NOTES EN PLUS PENDANT LES TPs :
 SDA : Comment encoder graphes

@@ -1,19 +1,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// on ne stocke pas le noeud de départ car CSR nous donne à quel noeud appartient l'arrête
 typedef struct {
     int target;
     double weight;
 } Edge;
 
+// toutes les arêtes sont dans un énorme tableau contigu
 typedef struct {
     int num_nodes;
     int num_edges;
-    int *first_edge; // Tableau des offsets (taille : num_nodes + 1)
-    Edge *edges;     // Tableau de toutes les arêtes (taille : num_edges)
+
+    // tableau des offsets = index
+    int *first_edge;
+
+    //tableau de toutes les arêtes les unes à la suite des autres
+    Edge *edges;
 } CSRGraph;
 
-// --- FONCTIONS ---
 
 CSRGraph* load_graph(const char *filename) {
     FILE *file = fopen(filename, "r");
@@ -22,13 +27,12 @@ CSRGraph* load_graph(const char *filename) {
         return NULL;
     }
 
-    printf("1. Analyse du fichier pour compter les noeuds et les aretes...\n");
     int u, v;
     double w;
     int max_node_id = -1;
     int edge_count = 0;
 
-    // Premier passage : trouver l'ID maximum pour connaitre le nombre de noeuds
+    // etape 1 : lecture de tout le fichier une 1ère fois pour trouver id max = (N) et compter le nombre d'arêtes total.
     while (fscanf(file, "%d %d %lf", &u, &v, &w) == 3) {
         if (u > max_node_id) max_node_id = u;
         if (v > max_node_id) max_node_id = v;
@@ -38,21 +42,22 @@ CSRGraph* load_graph(const char *filename) {
     int num_nodes = max_node_id + 1;
     printf("-> %d noeuds et %d aretes trouves.\n", num_nodes, edge_count);
 
-    // Allocation de la structure CSR
+    // maintenant qu'on connait les tailles, on peut malloc pour la structure CSR
     CSRGraph *graph = malloc(sizeof(CSRGraph));
     graph->num_nodes = num_nodes;
     graph->num_edges = edge_count;
+    // calloc pour first_edge -> mettre tout initialement à 0
     graph->first_edge = calloc(num_nodes + 1, sizeof(int));
     graph->edges = malloc(edge_count * sizeof(Edge));
 
-    // Deuxieme passage : Compter le nombre d'aretes sortantes pour chaque noeud
+
+    // etape 2 : on revient au debut du fichier, pour chaque (u,v, poids) on ajoute +1 au nb de voisins de u
     rewind(file);
     while (fscanf(file, "%d %d %lf", &u, &v, &w) == 3) {
         graph->first_edge[u]++;
     }
 
-    // Calcul des offsets (Somme prefixe)
-    printf("2. Construction de la structure CSR...\n");
+    // transformation en offsets
     int sum = 0;
     for (int i = 0; i <= num_nodes; i++) {
         int degree = graph->first_edge[i];
