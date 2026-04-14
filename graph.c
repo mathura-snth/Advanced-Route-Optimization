@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// --- STRUCTURES DE DONNÉES ---
-
 typedef struct {
     int target;
     double weight;

@@ -3,7 +3,7 @@
 Ce projet vise à construire un moteur de calcul d'itinéraires sur des réseaux routiers.
 L'objectif est d'implémenter et de comparer plusieurs algorithmes de plus court chemin (Dijkstra, A*, ALT, Contraction Hierarchies) en optimisant la représentation en mémoire et les temps de requête.
 
-## 1. Préparation et Extraction des Données (Python)
+## 1. Extraction des Données (Python)
 
 Les données brutes proviennent d'extractions OpenStreetMap (fichiers `.osm.pbf`). Au lieu d'utiliser le format XML (.osm) traité directement en C, nous avons préféré utiliser une pipeline hybride **Python (Osmium/Pandas) + PBF** pour deux raisons :
 
@@ -35,10 +35,46 @@ avec a = sin((lat2 - lat1)/2)^2 + cos(lat1) * cos(lat2) * sin((lon2 - lon1)/2)^2
 * `nodes.txt` : contient les sommets (ID mappé, Latitude, Longitude). Nécessaire pour les heuristiques géométriques (comme A*).
 * `edges.txt` : contient les arêtes (Source, Destination, Distance).
 
+## 2. Le Graphe CSR : Représentation en Mémoire
+
+L'énoncé du projet souligne un point important : sur des réseaux routiers de grande taille (plusieurs centaines de milliers d'arêtes), la structure mémoire compte énormément. 
+
+### Notre choix : La structure CSR (Compressed Sparse Row)
+Elle consiste à "aplatir" le graphe dans deux tableaux contigus en mémoire.
+
+Dans une approche classique, chaque arête stocke son point de départ, sa cible et son poids (u, v, w). Le CSR nous permet de supprimer le point de départ de chaque arête en regroupant les voisins d'un même nœud de manière contiguë.
+
+Par exemple : nœud 0 relié au nœud 1 (poids 5) et au nœud 2 (poids 8).
+  - Approche classique : On stocke (0, 1, 5) et (0, 2, 8) -> 6 valeurs.
+  - Approche CSR : On stocke uniquement les cibles et poids (1, 5) et (2, 8) -> 4 valeurs.
+
+Sur un graphe de plusieurs millions d'arêtes, nous économisons ainsi 33% de mémoire vive en supprimant la redondance du nœud source.
+
++ Accélération de l'accès aux voisins : pour retrouver ces voisins sans stocker la source, nous utilisons un tableau d'index appelé first_edge (= offsets). La contiguïté mémoire permet au processeur de charger les blocs de voisins directement dans son cache (Prefetching spatial), garantissant une itération sur les voisins extrêmement rapide et un accès direct en O(1). Dans notre exemple, first_edge[0]=1;first_edge[1]=2;first_edge[2]=3. 
+
+Ainsi on a :
+* `edges` : Un tableau unique regroupant **toutes** les arêtes du graphe (destination + poids).
+* `first_edge` : Un tableau d'offsets (index). Pour accéder aux voisins d'un nœud U, l'algorithme lit le tableau `edges` de l'indice `first_edge[U]` à `first_edge[U+1]`.
+
+----------  A FAIRE
+***TESTER D'AUTRES FORMAT COMME tableau de pointeurs vers des listes chaînées (une liste par nœud contenant ses voisins). et trouver que ça a 2 défauts majeurs :
+1. **Surcharge mémoire (Overhead) :** Chaque élément d'une liste chaînée nécessite le stockage d'un pointeur supplémentaire (`next`).
+2. **Défaut de localité (Cache Miss) :** Les éléments alloués via de multiples appels à `malloc` sont dispersés de manière aléatoire dans la RAM. Lors du parcours des voisins (l'opération la plus fréquente dans Dijkstra), le processeur subit de constants "cache misses", ce qui effondre les performances.***
+
+***TESTER SI ON ECONOMISE RÉELLEMENT 33% 
+***
+
+-----------
 
 
+### Construction en 3 Passes
+Puisque la taille des tableaux C doit être connue à la compilation ou allouée dynamiquement, le chargement du fichier s'effectue obligatoirement en trois passes optimisées :
+1. **Évaluation :** Lecture du fichier pour identifier l'ID maximal ($N$ nœuds) et compter le total des arêtes, permettant une allocation mémoire (`malloc`) exacte et sans gaspillage.
+2. **Calcul des Degrés :** Comptage du nombre d'arêtes sortantes pour chaque nœud, puis transformation de ces degrés en tableau d'index (offsets) via une somme préfixe.
+3. **Peuplement :** Remplissage définitif du grand tableau `edges` en utilisant les offsets calculés.
 
 
+# NOTES EN PLUS PENDANT LES TPs :
 SDA : Comment encoder graphes
 —— Choisir types de graphes -> par maps ou autre (Ou générer nous-mêmes (avantage : mieux contrôler / cas interessant))
 
@@ -59,36 +95,3 @@ Trier les points
 En fonction du nombre de routes qui passent par ces points, si une seule route par ces points alors pas d’intersection => on l’enlève mais garder les données des points retirés car sinon fausse la distance 
 
 En gros : on stocke la distance entre les points reliant A et B et on les cumule pour avoir distance A-B par ces points là mais on supprime ces points pour dire que c’est pas A-g-g-h-j-j-k-i-u-y-B mais A-B
-
-
-Ce que j’ai utilisé :
-https://overpass-turbo.eu/#
-[out:json][timeout:200];
-(
-  way(119894541);
-  way(119894531);
-  way(347935857);
-  way(568745133);
-  way(568745133);
-  way(568745132);
-);
-out geom;
-
-https://geodatamine.fr/
-https://download.geofabrik.de/europe/france/ile-de-france.html
-https://www.openstreetmap.org/export
-
-
-[out:json][timeout:200];
-(
-  way(119894541);
-  way(119894531);
-  way(347935857);
-  way(568745133);
-  way(568745133);
-  way(568745132);
-);
-out geom;
-
-
-Attention il faut rendre le projet reproductible
