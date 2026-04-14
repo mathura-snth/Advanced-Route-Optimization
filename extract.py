@@ -2,21 +2,20 @@ import osmium
 import pandas as pd
 import math
 
-# Fonction mathématique pour calculer la distance en mètres entre deux points GPS
+# Calcul de la distance en mètres entre deux points à la surface de la Terre
 def distance(lat1, lon1, lat2, lon2):
-    R = 6371000 # Rayon de la Terre en mètres
-    phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi, dlam = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
-    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlam/2)**2
+    R = 6371000 # rayon de la Terre (mètres)
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    a = math.sin((math.radians(lat2 - lat1))/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin((math.radians(lon2 - lon1))/2)**2
     return R * (2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))
 
-# La classe qui va lire le fichier PBF
+# La classe osmium.SimpleHandler qui va lire le fichier PBF
 class MapHandler(osmium.SimpleHandler):
     def __init__(self):
         osmium.SimpleHandler.__init__(self)
-        self.nodes = {}
-        self.edges = []
-        # On ne garde que les routes principales pour les voitures
+        self.nodes = {} # dico pour stocker temporairement les intersections
+        self.edges = [] # liste pour stocker les routes (arêtes)
         self.valid_highways = {'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'unclassified', 'residential'}
 
     def node(self, n):
