@@ -50,22 +50,24 @@ CSRGraph* load_graph(const char *filename) {
     graph->first_edge = calloc(num_nodes + 1, sizeof(int));
     graph->edges = malloc(edge_count * sizeof(Edge));
 
-
     // etape 2 : on revient au debut du fichier, pour chaque (u,v, poids) on ajoute +1 au nb de voisins de u
     rewind(file);
     while (fscanf(file, "%d %d %lf", &u, &v, &w) == 3) {
         graph->first_edge[u]++;
     }
 
-    // transformation en offsets
+    // transformation en offsets (index)
+    // si le noeud 0 a 3 voisins alors les voisins du noeud 1 commenceront à l'indice 3 du tableau
     int sum = 0;
     for (int i = 0; i <= num_nodes; i++) {
         int degree = graph->first_edge[i];
         graph->first_edge[i] = sum;
+        // décalade de l'index pour le noeud suivant
         sum += degree;
     }
 
-    // Troisieme passage : Remplir le tableau des aretes
+    // Troisieme passage : Remplir le tableau des aretes -> ranger les arêtes dans le bon ordre sans écraser nos repères
+    // on crée une copie temporaire des index pour savoir où écrire
     int *current_offset = malloc((num_nodes + 1) * sizeof(int));
     for (int i = 0; i <= num_nodes; i++) {
         current_offset[i] = graph->first_edge[i];
@@ -73,43 +75,42 @@ CSRGraph* load_graph(const char *filename) {
 
     rewind(file);
     while (fscanf(file, "%d %d %lf", &u, &v, &w) == 3) {
+        // on regarde où ranger l'arête pour u
         int index = current_offset[u];
+        // on la range au bon endroit dans edges
         graph->edges[index].target = v;
         graph->edges[index].weight = w;
+        // on avance l'index temporaire pour que la prochaine arête de u se mette juste à côté
         current_offset[u]++;
     }
 
     free(current_offset);
     fclose(file);
-    printf("-> Graphe charge en memoire avec succes !\n");
+    printf("succès du chargement en mémoire\n");
     
     return graph;
 }
 
-// Fonction de test pour verifier que les donnees sont bien la
+// test pour verifier que les donnees sont bien la
 void print_node_info(CSRGraph *graph, int node_id) {
     if (node_id >= graph->num_nodes) return;
     
+    // SUPER IMPORTANT : maintenant, pour parcourir les voisins on a juste besoin de la borne de début et de fin
     int start = graph->first_edge[node_id];
     int end = graph->first_edge[node_id + 1];
     
     printf("\nLe noeud %d est relie a %d autres noeuds :\n", node_id, end - start);
     for (int i = start; i < end; i++) {
-        printf("  -> Noeud %d (Distance: %.2f metres)\n", graph->edges[i].target, graph->edges[i].weight);
+        printf(" - Noeud %d (Distance: %.2f metres)\n", graph->edges[i].target, graph->edges[i].weight);
     }
 }
 
-// --- MAIN ---
-
 int main() {
-    // On charge le fichier généré par le script Python
     CSRGraph *graph = load_graph("edges.txt");
 
     if (graph) {
-        // Testons avec le tout premier noeud (ID 0)
         print_node_info(graph, 0);
-
-        // Liberation propre de la memoire a la fin
+        
         free(graph->first_edge);
         free(graph->edges);
         free(graph);

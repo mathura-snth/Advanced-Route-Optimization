@@ -62,8 +62,22 @@ Ainsi on a :
 * `edges` : Un tableau unique regroupant **toutes** les arêtes du graphe (destination + poids).
 * `first_edge` : Un tableau d'offsets (index). Pour accéder aux voisins d'un nœud U, l'algorithme lit le tableau `edges` de l'indice `first_edge[U]` à `first_edge[U+1]`.
 
+
+### Construction du CSR
+On doit résoudre 2 problèmes :
+1. la taille des tableaux alloués dynamiquement doit être définie à l'avance
+2. les données géographiques du fichier brut sont "dans le désordre" (les routes d'un même nœud ne sont pas écrites les unes à la suite des autres)
+
+Pour cela on implémente en 3 lectures du fichier :
+1. **Évaluation :** 1ère lecture du fichier pour identifier l'ID maximal ($N$ nœuds) et compter le total des arêtes, permettant une allocation mémoire (`malloc`) sans gaspillage.
+2. **Calcul des Degrés :** 2ème lecture du fichier pour compter le nombre d'arêtes sortantes pour chaque nœud (= nombre de voisins de chaque noeud), puis transformation de ces degrés en tableau d'index (offsets) via une somme (accumulation) qui permet de générer `first_edge`.
+3. **Peuplement :** 3èm lectire pour parcourir le fichier désordonné, on utiulise une copie temporaire (current_offset), chaque arête lue est insérée dans la case mémoire qui lui était réservée (bon nombre de résevation grâce à 1ère lecture). On a alors un remplissage groupé, contiguë et définitif du tableau `edges`.
+
+
+
+
 ----------  A FAIRE
-***TESTER D'AUTRES FORMAT COMME tableau de pointeurs vers des listes chaînées (une liste par nœud contenant ses voisins). et trouver que ça a 2 défauts majeurs :
+***TESTER D'AUTRES FORMAT au lieu de CSR, COMME tableau de pointeurs vers des listes chaînées (une liste par nœud contenant ses voisins). et trouver que ça a 2 défauts majeurs :
 1. **Surcharge mémoire (Overhead) :** Chaque élément d'une liste chaînée nécessite le stockage d'un pointeur supplémentaire (`next`).
 2. **Défaut de localité (Cache Miss) :** Les éléments alloués via de multiples appels à `malloc` sont dispersés de manière aléatoire dans la RAM. Lors du parcours des voisins (l'opération la plus fréquente dans Dijkstra), le processeur subit de constants "cache misses", ce qui effondre les performances.***
 
@@ -71,14 +85,6 @@ Ainsi on a :
 ***
 
 -----------
-
-
-### Construction en 3 étapes
-Puisque la taille des tableaux C doit être connue à la compilation ou allouée dynamiquement, le chargement du fichier s'effectue obligatoirement en trois étapes :
-1. **Évaluation :** Lecture du fichier pour identifier l'ID maximal ($N$ nœuds) et compter le total des arêtes, permettant une allocation mémoire (`malloc`) sans gaspillage.
-2. **Calcul des Degrés :** Comptage du nombre d'arêtes sortantes pour chaque nœud, puis transformation de ces degrés en tableau d'index (offsets) via une somme préfixe.
-3. **Peuplement :** Remplissage définitif du grand tableau `edges` en utilisant les offsets calculés.
-
 --------------------------------------------
 
 # NOTES EN PLUS PENDANT LES TPs :
