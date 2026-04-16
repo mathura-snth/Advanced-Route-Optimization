@@ -254,7 +254,6 @@ void dijkstra(csr_graph_t *graphe, int depart, int arrivee) {
     if (distances[arrivee] == DBL_MAX) {
         fprintf(stderr, "Erreur : Aucun chemin trouvé.\n");
     } else {
-        printf("Succes !\n");
         printf("- Distance trouvee : %.2f\n", distances[arrivee]);
         printf("- Extractions      : %lld\n", nb_extractions);
         printf("- Relaxations      : %lld\n", nb_relaxations);
