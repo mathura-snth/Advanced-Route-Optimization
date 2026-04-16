@@ -1,25 +1,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// structure de données
 // on ne stocke pas le noeud de départ car CSR nous donne à quel noeud appartient l'arrête
 typedef struct {
-    int target;
-    double weight;
-} Edge;
+    int cible;
+    double poids;
+} arete_t;
 
 // toutes les arêtes sont dans un énorme tableau contigu
 typedef struct {
-    int num_nodes;
-    int num_edges;
+    int nb_noeuds;
+    int nb_aretes;
     int *first_edge; // tableau des offsets = index
-    Edge *edges;    //tableau de toutes les arêtes les unes à la suite des autres
-} CSRGraph;
+    arete_t *edges;  // tableau de toutes les arêtes les unes à la suite des autres
+} csr_graph_t;
 
 
-CSRGraph* load_graph(const char *filename) {
+csr_graph_t* load_graph(const char *filename) {
     FILE *file = fopen(filename, "r");
     if (!file) {
-        printf("Erreur : Impossible d'ouvrir le fichier %s\n", filename);
+        fprintf(stderr, "Erreur : Impossible d'ouvrir le fichier %s\n", filename);
         return NULL;
     }
 
@@ -32,83 +33,89 @@ CSRGraph* load_graph(const char *filename) {
     while (fscanf(file, "%d %d %lf", &u, &v, &w) == 3) {
         if (u > max_node_id) max_node_id = u;
         if (v > max_node_id) max_node_id = v;
-        edge_count++;
+        edge_count += 2; // pour Dijkstra aille dans les deux sens on considère le graphe comme non orienté donc bidirectionnel donc 
     }
-    int num_nodes = max_node_id + 1;
-    printf("-> %d noeuds et %d aretes trouves.\n", num_nodes, edge_count);
+    int nb_noeuds = max_node_id + 1;
+    printf("-> %d noeuds et %d aretes trouves.\n", nb_noeuds, edge_count);
 
     // maintenant qu'on connait les tailles, on peut allouer de la mémoire pour la structure CSR
-    CSRGraph *graph = malloc(sizeof(CSRGraph));
-    graph->num_nodes = num_nodes;
-    graph->num_edges = edge_count;
+    csr_graph_t *graphe = malloc(sizeof(csr_graph_t));
+    graphe->nb_noeuds = nb_noeuds;
+    graphe->nb_aretes = edge_count;
     // calloc pour first_edge -> mettre tout initialement à 0
-    graph->first_edge = calloc(num_nodes + 1, sizeof(int));
-    graph->edges = malloc(edge_count * sizeof(Edge));
+    graphe->first_edge = calloc(nb_noeuds + 1, sizeof(int));
+    graphe->edges = malloc(edge_count * sizeof(arete_t));
 
     // etape 2 : on revient au debut du fichier, pour chaque (u,v, poids) on ajoute +1 au nb de voisins de u
     rewind(file);
     while (fscanf(file, "%d %d %lf", &u, &v, &w) == 3) {
-        graph->first_edge[u]++;
+        graphe->first_edge[u]++;
+        graphe->first_edge[v]++; 
     }
 
     // transformation en offsets (index)
     // si le noeud 0 a 3 voisins alors les voisins du noeud 1 commenceront à l'indice 3 du tableau
     int sum = 0;
-    for (int i = 0; i <= num_nodes; i++) {
-        int degree = graph->first_edge[i];
-        graph->first_edge[i] = sum;
+    for (int i = 0; i <= nb_noeuds; i++) {
+        int degree = graphe->first_edge[i];
+        graphe->first_edge[i] = sum;
         // décalade de l'index pour le noeud suivant
         sum += degree;
     }
 
     // etape 3 : Remplir le tableau des aretes -> ranger les arêtes dans le bon ordre sans écraser nos repères
     // on crée une copie temporaire des index pour savoir où écrire
-    int *current_offset = malloc((num_nodes + 1) * sizeof(int));
-    for (int i = 0; i <= num_nodes; i++) {
-        current_offset[i] = graph->first_edge[i];
+    int *current_offset = malloc((nb_noeuds + 1) * sizeof(int));
+    for (int i = 0; i <= nb_noeuds; i++) {
+        current_offset[i] = graphe->first_edge[i];
     }
 
     rewind(file);
     while (fscanf(file, "%d %d %lf", &u, &v, &w) == 3) {
-        // on regarde où ranger l'arête pour u
-        int index = current_offset[u];
-        // on la range au bon endroit dans edges
-        graph->edges[index].target = v;
-        graph->edges[index].weight = w;
-        // on avance l'index temporaire pour que la prochaine arête de u se mette juste à côté
-        current_offset[u]++;
+        // Sens u -> v
+        int index_u = current_offset[u]++;
+        graphe->edges[index_u].cible = v;
+        graphe->edges[index_u].poids = w;
+
+        // Sens v -> u (bidirectionnel)
+        int index_v = current_offset[v]++;
+        graphe->edges[index_v].cible = u;
+        graphe->edges[index_v].poids = w;
     }
 
     free(current_offset);
     fclose(file);
     printf("succès du chargement en mémoire\n");
     
-    return graph;
+    return graphe;
 }
 
 // test pour verifier que les donnees sont bien la
-void print_node_info(CSRGraph *graph, int node_id) {
-    if (node_id >= graph->num_nodes) return;
+void afficher_infos_noeud(csr_graph_t *graphe, int id_noeud) {
+    if (id_noeud >= graphe->nb_noeuds) return; // on verifie que noeud existe
     
-    // SUPER IMPORTANT : maintenant, pour parcourir les voisins on a juste besoin de la borne de début et de fin
-    int start = graph->first_edge[node_id];
-    int end = graph->first_edge[node_id + 1];
+    // indice de depart dans : first_edge[i], indice de fin dans : first_edge[i+1].
+    int debut = graphe->first_edge[id_noeud];
+    int fin = graphe->first_edge[id_noeud + 1];
     
-    printf("\nLe noeud %d est relie a %d autres noeuds :\n", node_id, end - start);
-    for (int i = start; i < end; i++) {
-        printf(" - Noeud %d (Distance: %.2f metres)\n", graph->edges[i].target, graph->edges[i].weight);
+    printf("\nLe noeud %d est relie a %d autres noeuds :\n", id_noeud, fin - debut);
+    
+    // on parcourt directement le tableau d'arêtes entre ces deux bornes -> O(1)
+    for (int i = debut; i < fin; i++) {
+        printf(" - Noeud %d (Distance: %.2f metres)\n", graphe->edges[i].cible, graphe->edges[i].poids);
     }
 }
 
 int main() {
-    CSRGraph *graph = load_graph("edges.txt");
+    csr_graph_t *graphe = load_graph("edges.txt");
 
-    if (graph) {
-        print_node_info(graph, 0);
+    if (graphe) {
+        // test affichage voisins du noeud d'id 0
+        afficher_infos_noeud(graphe, 0);
         
-        free(graph->first_edge);
-        free(graph->edges);
-        free(graph);
+        free(graphe->first_edge);
+        free(graphe->edges);
+        free(graphe);
     }
 
     return 0;
