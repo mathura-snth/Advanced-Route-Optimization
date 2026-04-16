@@ -1,34 +1,32 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <float.h>
-#include <sys/time.h>
-#include <math.h> // Pour la valeur absolue (fabs)
+#include <time.h>  // Pour clock_gettime (remplace sys/time.h)
+#include <math.h>  // Pour la valeur absolue (fabs)
 
-// ==========================================
-// 1. STRUCTURES DU GRAPHE CSR
-// ==========================================
+// structures comme a_star
+typedef struct {
+    int cible;
+    double poids;
+} arete_t;
 
 typedef struct {
-    int target;
-    double weight;
-} Edge;
+    int nb_noeuds;
+    int nb_aretes;
+    int *first_edge; 
+    arete_t *edges;  
+} csr_graph_t;
 
-typedef struct {
-    int num_nodes;
-    int num_edges;
-    int *first_edge;
-    Edge *edges;
-} CSRGraph;
 
-// ==========================================
-// 2. CHARGEMENT DU GRAPHE (BIDIRECTIONNEL)
-// ==========================================
+// chargement comme a_star
 
-CSRGraph* load_graph(const char *filename) {
+csr_graph_t* load_graph(const char *filename) {
     FILE *file = fopen(filename, "r");
-    if (!file) return NULL;
+    if (!file) {
+        fprintf(stderr, "Erreur : Impossible d'ouvrir le fichier %s\n", filename);
+        return NULL;
+    }
 
-    printf("1. Chargement du reseau routier (Bidirectionnel)...\n");
     int u, v;
     double w;
     int max_node_id = -1;
@@ -37,178 +35,189 @@ CSRGraph* load_graph(const char *filename) {
     while (fscanf(file, "%d %d %lf", &u, &v, &w) == 3) {
         if (u > max_node_id) max_node_id = u;
         if (v > max_node_id) max_node_id = v;
-        edge_count += 2; // Graphe non-orienté
+        edge_count += 2; // bidirectionnel
     }
+    int nb_noeuds = max_node_id + 1;
+    printf("-> %d noeuds et %d aretes trouves.\n", nb_noeuds, edge_count);
 
-    int num_nodes = max_node_id + 1;
-    CSRGraph *graph = malloc(sizeof(CSRGraph));
-    graph->num_nodes = num_nodes;
-    graph->num_edges = edge_count;
-    graph->first_edge = calloc(num_nodes + 1, sizeof(int));
-    graph->edges = malloc(edge_count * sizeof(Edge));
+    csr_graph_t *graphe = malloc(sizeof(csr_graph_t));
+    graphe->nb_noeuds = nb_noeuds;
+    graphe->nb_aretes = edge_count;
+    graphe->first_edge = calloc(nb_noeuds + 1, sizeof(int));
+    graphe->edges = malloc(edge_count * sizeof(arete_t));
 
     rewind(file);
     while (fscanf(file, "%d %d %lf", &u, &v, &w) == 3) {
-        graph->first_edge[u]++;
-        graph->first_edge[v]++;
+        graphe->first_edge[u]++;
+        graphe->first_edge[v]++; 
     }
 
     int sum = 0;
-    for (int i = 0; i <= num_nodes; i++) {
-        int degree = graph->first_edge[i];
-        graph->first_edge[i] = sum;
+    for (int i = 0; i <= nb_noeuds; i++) {
+        int degree = graphe->first_edge[i];
+        graphe->first_edge[i] = sum;
         sum += degree;
     }
 
-    int *current_offset = malloc((num_nodes + 1) * sizeof(int));
-    for (int i = 0; i <= num_nodes; i++) {
-        current_offset[i] = graph->first_edge[i];
+    int *current_offset = malloc((nb_noeuds + 1) * sizeof(int));
+    for (int i = 0; i <= nb_noeuds; i++) {
+        current_offset[i] = graphe->first_edge[i];
     }
 
     rewind(file);
     while (fscanf(file, "%d %d %lf", &u, &v, &w) == 3) {
         int index_u = current_offset[u]++;
-        graph->edges[index_u].target = v;
-        graph->edges[index_u].weight = w;
+        graphe->edges[index_u].cible = v;
+        graphe->edges[index_u].poids = w;
 
         int index_v = current_offset[v]++;
-        graph->edges[index_v].target = u;
-        graph->edges[index_v].weight = w;
+        graphe->edges[index_v].cible = u;
+        graphe->edges[index_v].poids = w;
     }
 
     free(current_offset);
     fclose(file);
-    printf("-> Graphe charge : %d noeuds, %d aretes.\n", graph->num_nodes, graph->num_edges);
-    return graph;
+    printf("succès du chargement du graphe CSR en mémoire\n");
+    
+    return graphe;
 }
 
-// ==========================================
-// 3. FILE DE PRIORITÉ (Pour A* et Dijkstra)
-// ==========================================
+
+// même file de priorité mais différente heuristique
+
+// on utilise, comme a_star, le score global f pour trier et la distance réelle g pour la lazy deletion
+typedef struct {
+    int sommet;
+    double f; // f(v) = g(v) + h(v) (Clé de tri)
+    double g; // Vraie distance parcourue
+} element_tas_t;
 
 typedef struct {
-    int node;
-    double f; // Score total (tri du tas)
-    double g; // Vraie distance
-} HeapNode;
-
-typedef struct {
-    HeapNode *data;
+    element_tas_t *data;
     int size;
     int capacity;
-} MinHeap;
+} tas_binaire_t;
 
-MinHeap* create_heap(int capacity) {
-    MinHeap *heap = malloc(sizeof(MinHeap));
-    heap->capacity = capacity;
-    heap->size = 0;
-    heap->data = malloc(capacity * sizeof(HeapNode));
-    return heap;
+tas_binaire_t* tas_create(int capacity) {
+    tas_binaire_t *tas = malloc(sizeof(tas_binaire_t));
+    tas->capacity = capacity;
+    tas->size = 0;
+    tas->data = malloc(capacity * sizeof(element_tas_t));
+    return tas;
 }
 
-void swap(HeapNode *a, HeapNode *b) {
-    HeapNode temp = *a; *a = *b; *b = temp;
-}
-
-void push(MinHeap *heap, int node, double f, double g) {
-    if (heap->size == heap->capacity) return;
-    int i = heap->size++;
-    heap->data[i].node = node;
-    heap->data[i].f = f;
-    heap->data[i].g = g;
-    while (i != 0 && heap->data[(i - 1) / 2].f > heap->data[i].f) {
-        swap(&heap->data[i], &heap->data[(i - 1) / 2]);
-        i = (i - 1) / 2;
+void tas_destroy(tas_binaire_t * tas) {
+    if(tas != NULL) {
+        if(tas->data != NULL) free(tas->data);
+        free(tas);
     }
 }
 
-HeapNode pop(MinHeap *heap) {
-    if (heap->size <= 0) return (HeapNode){-1, -1.0, -1.0};
-    if (heap->size == 1) return heap->data[--heap->size];
-    HeapNode root = heap->data[0];
-    heap->data[0] = heap->data[--heap->size];
-    int i = 0;
-    while (1) {
-        int left = 2 * i + 1;
-        int right = 2 * i + 2;
-        int smallest = i;
-        if (left < heap->size && heap->data[left].f < heap->data[smallest].f)
-            smallest = left;
-        if (right < heap->size && heap->data[right].f < heap->data[smallest].f)
-            smallest = right;
-        if (smallest != i) {
-            swap(&heap->data[i], &heap->data[smallest]);
-            i = smallest;
+void tas_ajout(tas_binaire_t * tas, int sommet, double f, double g) {
+    if (tas->size >= tas->capacity) return;
+    
+    int i = tas->size;
+    tas->data[i].sommet = sommet;
+    tas->data[i].f = f;
+    tas->data[i].g = g;
+    tas->size++;
+    
+    while (i > 0) {
+        int parent = (i - 1) / 2;
+        if (tas->data[i].f < tas->data[parent].f) {
+            element_tas_t temp = tas->data[i];
+            tas->data[i] = tas->data[parent];
+            tas->data[parent] = temp;
+            i = parent;
         } else {
             break;
         }
     }
-    return root;
 }
 
-void free_heap(MinHeap *heap) {
-    free(heap->data);
-    free(heap);
+element_tas_t tas_extraire_min(tas_binaire_t * tas) {
+    if (tas->size <= 0) return (element_tas_t){-1, -1.0, -1.0};
+    
+    element_tas_t racine = tas->data[0];
+    tas->size--;
+    tas->data[0] = tas->data[tas->size]; 
+    
+    int i = 0;
+    while (1) {
+        int gauche = 2 * i + 1;
+        int droit = 2 * i + 2;
+        int min = i;
+        
+        if (gauche < tas->size && tas->data[gauche].f < tas->data[min].f)
+            min = gauche;
+        if (droit < tas->size && tas->data[droit].f < tas->data[min].f)
+            min = droit;
+            
+        if (min != i) {
+            element_tas_t temp = tas->data[i];
+            tas->data[i] = tas->data[min];
+            tas->data[min] = temp;
+            i = min;
+        } else {
+            break;
+        }
+    }
+    return racine;
 }
 
-// ==========================================
-// 4. PRÉ-CALCUL DES LANDMARKS (ALT)
-// ==========================================
+//précalcul spécifique à alt
 
-double get_time_in_seconds() {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return tv.tv_sec + tv.tv_usec / 1000000.0;
-}
+// avant de calculer l'heuristique d'alt, on doit connaitre la distance exacte entre chaque landmarks (points repères) et tous les autresz noeuds du graphe.
+// on fait pour ça, dijkstra sur chaque landmark
+double* dijkstra_pour_landmark(csr_graph_t *graphe, int landmark) {
+    double *distances = malloc(graphe->nb_noeuds * sizeof(double));
+    for (int i = 0; i < graphe->nb_noeuds; i++) distances[i] = DBL_MAX;
 
-// Fait un Dijkstra classique depuis un Landmark vers tous les autres noeuds
-double* dijkstra_for_landmark(CSRGraph *graph, int landmark_node) {
-    double *dist = malloc(graph->num_nodes * sizeof(double));
-    for (int i = 0; i < graph->num_nodes; i++) dist[i] = DBL_MAX;
+    tas_binaire_t *tas = tas_create(graphe->nb_aretes);
+    distances[landmark] = 0.0;
+    
+    // dijkstra sans destination ni heurisitque
+    tas_ajout(tas, landmark, 0.0, 0.0);
 
-    MinHeap *heap = create_heap(graph->num_edges);
-    dist[landmark_node] = 0.0;
-    push(heap, landmark_node, 0.0, 0.0);
+    while (tas->size > 0) {
+        element_tas_t courant = tas_extraire_min(tas);
+        int u = courant.sommet;
 
-    while (heap->size > 0) {
-        HeapNode current = pop(heap);
-        int u = current.node;
+        if (courant.g > distances[u]) continue;
 
-        if (current.g > dist[u]) continue;
+        int debut_aretes = graphe->first_edge[u];
+        int fin_aretes = graphe->first_edge[u + 1];
 
-        int start_edge = graph->first_edge[u];
-        int end_edge = graph->first_edge[u + 1];
+        for (int i = debut_aretes; i < fin_aretes; i++) {
+            int v = graphe->edges[i].cible;
+            double poids = graphe->edges[i].poids;
 
-        for (int i = start_edge; i < end_edge; i++) {
-            int v = graph->edges[i].target;
-            double weight = graph->edges[i].weight;
-
-            if (dist[u] + weight < dist[v]) {
-                dist[v] = dist[u] + weight;
-                push(heap, v, dist[v], dist[v]);
+            if (distances[u] + poids < distances[v]) {
+                distances[v] = distances[u] + poids;
+                tas_ajout(tas, v, distances[v], distances[v]);
             }
         }
     }
-    free_heap(heap);
-    return dist; // Retourne le tableau contenant les distances vers toute la carte
+    tas_destroy(tas);
+    
+    // on retourne un tableau qui contient les distances du landmark vers tout le reste
+    return distances; 
 }
 
-// ==========================================
-// 5. HEURISTIQUE ALT
-// ==========================================
-
-// Calcule l'inegalite triangulaire maximale
-double alt_heuristic(int u, int target, int num_landmarks, double **landmark_dists) {
+// heuristique alt : inégalité triangulaire
+// dist(U,V) >= |dist(U,L) - dist(V,L)| => donne heuristique sans avoir besoin des coordonnées
+double heuristique_alt(int u, int arrivee, int nb_landmarks, double **distances_landmarks) {
     double max_h = 0.0;
-    for (int i = 0; i < num_landmarks; i++) {
-        // Distance du noeud u au Landmark L
-        double dist_u_L = landmark_dists[i][u];
-        // Distance de la cible au Landmark L
-        double dist_target_L = landmark_dists[i][target];
+    
+    for (int i = 0; i < nb_landmarks; i++) {
+        double dist_u_L = distances_landmarks[i][u];
+        double dist_arrivee_L = distances_landmarks[i][arrivee];
 
-        // Si l'un des deux noeuds n'est pas connecte au Landmark, on l'ignore
-        if (dist_u_L != DBL_MAX && dist_target_L != DBL_MAX) {
-            double h = fabs(dist_u_L - dist_target_L); // Valeur absolue de la difference
+        // on applique ineg triangulaire si les deux noeuds atteignent landmark
+        if (dist_u_L != DBL_MAX && dist_arrivee_L != DBL_MAX) {
+            double h = fabs(dist_u_L - dist_arrivee_L);
+            
+            // val max des landmarks pour augmenter précision
             if (h > max_h) {
                 max_h = h;
             }
@@ -217,121 +226,128 @@ double alt_heuristic(int u, int target, int num_landmarks, double **landmark_dis
     return max_h;
 }
 
-// ==========================================
-// 6. ALGORITHME ALT (La Requête)
-// ==========================================
+void alt(csr_graph_t *graphe, int depart, int arrivee, int nb_landmarks, double **distances_landmarks) {
+    printf("\nRecherche ALT de %d vers %d\n", depart, arrivee);
 
-void alt_search(CSRGraph *graph, int start_node, int target_node, int num_landmarks, double **landmark_dists) {
-    printf("\n=== Lancement de la requete ALT ===\n");
-    printf("Recherche : %d -> %d\n", start_node, target_node);
+    double *distances = malloc(graphe->nb_noeuds * sizeof(double));
+    int *predecesseurs = malloc(graphe->nb_noeuds * sizeof(int));
 
-    double *dist = malloc(graph->num_nodes * sizeof(double));
-    for (int i = 0; i < graph->num_nodes; i++) dist[i] = DBL_MAX;
+    for (int i = 0; i < graphe->nb_noeuds; i++) {
+        distances[i] = DBL_MAX; 
+        predecesseurs[i] = -1;      
+    }
 
-    MinHeap *heap = create_heap(graph->num_edges);
-    dist[start_node] = 0.0;
+    struct timespec before, after;
+    clockid_t clk_id = CLOCK_REALTIME;
+    clock_gettime(clk_id, &before);
+
+    tas_binaire_t * tas = tas_create(graphe->nb_aretes); 
+    distances[depart] = 0.0;
     
-    // Heuristique ALT de depart
-    double h_start = alt_heuristic(start_node, target_node, num_landmarks, landmark_dists);
-    push(heap, start_node, h_start, 0.0);
+    // heuristique initiale
+    double h_depart = heuristique_alt(depart, arrivee, nb_landmarks, distances_landmarks);
+    tas_ajout(tas, depart, h_depart, 0.0);
 
-    long long extractions = 0;
-    long long relaxations = 0;
-    double start_time = get_time_in_seconds();
+    long long nb_extractions = 0;
+    long long nb_relaxations = 0;
 
-    while (heap->size > 0) {
-        HeapNode current = pop(heap);
-        int u = current.node;
+    while (tas->size > 0) {
+        element_tas_t courant = tas_extraire_min(tas);
+        int u = courant.sommet;
 
-        if (current.g > dist[u]) continue;
+        if (courant.g > distances[u]) continue;
 
-        extractions++;
-        if (u == target_node) break;
+        nb_extractions++;
 
-        int start_edge = graph->first_edge[u];
-        int end_edge = graph->first_edge[u + 1];
+        // early exit
+        if (u == arrivee) break; 
 
-        for (int i = start_edge; i < end_edge; i++) {
-            int v = graph->edges[i].target;
-            double weight = graph->edges[i].weight;
+        int debut_aretes = graphe->first_edge[u];
+        int fin_aretes = graphe->first_edge[u + 1];
 
-            if (dist[u] + weight < dist[v]) {
-                relaxations++;
-                dist[v] = dist[u] + weight;
+        for (int i = debut_aretes; i < fin_aretes; i++) {
+            int v = graphe->edges[i].cible;
+            double poids = graphe->edges[i].poids;
+
+            if (distances[u] + poids < distances[v]) {
+                nb_relaxations++; 
+                distances[v] = distances[u] + poids;
+                predecesseurs[v] = u;
                 
-                // Nouvelle Heuristique ALT
-                double h = alt_heuristic(v, target_node, num_landmarks, landmark_dists);
-                double f = dist[v] + h;
+                // nouvelle heurisitique basée sur landmarks
+                double h = heuristique_alt(v, arrivee, nb_landmarks, distances_landmarks);
                 
-                push(heap, v, f, dist[v]);
+                // nouveua score
+                double f = distances[v] + h;
+                
+                tas_ajout(tas, v, f, distances[v]);
             }
         }
     }
 
-    double time_total = get_time_in_seconds() - start_time;
+    clock_gettime(clk_id, &after);
+    double temps_sec = (after.tv_sec - before.tv_sec) + (after.tv_nsec - before.tv_nsec) / 1e9;
 
-    if (dist[target_node] == DBL_MAX) {
-        printf("-> Echec : Aucun chemin trouve.\n");
+    if (distances[arrivee] == DBL_MAX) {
+        fprintf(stderr, "Erreur : Aucun chemin trouvé.\n");
     } else {
-        printf("-> Succes !\n");
-        printf("-> Distance totale : %.2f metres\n", dist[target_node]);
-        printf("\n--- METRIQUES D'EVALUATION ALT ---\n");
-        printf("1. Extractions : %lld\n", extractions);
-        printf("2. Relaxations : %lld\n", relaxations);
-        printf("3. Temps total : %.6f secondes\n", time_total);
+        printf("Succes !\n");
+        printf("- Distance totale (g) : %.2f metres\n", distances[arrivee]);
+        printf("- Extractions (Noeuds visites) : %lld\n", nb_extractions);
+        printf("- Relaxations                  : %lld\n", nb_relaxations);
+        printf("- Temps d'execution            : %lf secondes\n", temps_sec);
     }
-    printf("========================================\n");
 
-    free(dist);
-    free_heap(heap);
+    free(distances);
+    free(predecesseurs);
+    tas_destroy(tas);
 }
 
-// ==========================================
-// 7. MAIN
-// ==========================================
-
 int main() {
-    CSRGraph *graph = load_graph("edges.txt");
-    if (!graph) return 1;
+    csr_graph_t *graphe = load_graph("edges.txt");
+    if (!graphe) return EXIT_FAILURE;
 
-    // 1. CHOIX DES LANDMARKS
-    int num_landmarks = 10;
-    int *landmarks = malloc(num_landmarks * sizeof(int));
+    // on definit le nombre de landmarks
+    int nb_landmarks = 10;
+    int *landmarks = malloc(nb_landmarks * sizeof(int));
     
-    // Choix aléatoire des Landmarks (Fixe la seed pour avoir toujours les memes)
+    // On fixe la seed => reproductibilité
     srand(42); 
-    printf("\n2. Selection de %d Landmarks (Aleatoire)...\n", num_landmarks);
-    for (int i = 0; i < num_landmarks; i++) {
-        landmarks[i] = rand() % graph->num_nodes;
+    printf("\nSelection de %d Landmarks \n", nb_landmarks);
+    for (int i = 0; i < nb_landmarks; i++) {
+        landmarks[i] = rand() % graphe->nb_noeuds;
         printf("   -> Landmark %d : Noeud %d\n", i+1, landmarks[i]);
     }
-
-    // 2. PHASE DE PRÉ-CALCUL
-    printf("\n3. Lancement des pre-calculs (Ca peut prendre quelques secondes)...\n");
-    double precalc_start = get_time_in_seconds();
+    printf("\nLancement des pre-calculs\n");
     
-    // Tableau de 10 pointeurs (un pour chaque Landmark) contenant les distances
-    double **landmark_dists = malloc(num_landmarks * sizeof(double*));
-    for (int i = 0; i < num_landmarks; i++) {
-        landmark_dists[i] = dijkstra_for_landmark(graph, landmarks[i]);
+    struct timespec pre_before, pre_after;
+    clock_gettime(CLOCK_REALTIME, &pre_before);
+    
+    // tableau de distances pour chaque landmarks
+    double **distances_landmarks = malloc(nb_landmarks * sizeof(double*));
+    for (int i = 0; i < nb_landmarks; i++) {
+        distances_landmarks[i] = dijkstra_pour_landmark(graphe, landmarks[i]);
     }
     
-    printf("-> Pre-calculs termines en %.2f secondes.\n", get_time_in_seconds() - precalc_start);
+    clock_gettime(CLOCK_REALTIME, &pre_after);
+    double temps_precalc = (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1e9;
+    printf("-> Pre-calculs termines en %.2f secondes.\n", temps_precalc);
 
-    // 3. LA REQUÊTE ALT
-    // Teste avec ton meme noeud de depart et d'arrivee que dans a_star.c
+    // requete alt
     int depart = 15;
     int arrivee = 1466593; 
 
-    alt_search(graph, depart, arrivee, num_landmarks, landmark_dists);
+    alt(graphe, depart, arrivee, nb_landmarks, distances_landmarks);
 
-    // 4. LIBÉRATION MÉMOIRE
-    for (int i = 0; i < num_landmarks; i++) free(landmark_dists[i]);
-    free(landmark_dists);
+    for (int i = 0; i < nb_landmarks; i++) {
+        free(distances_landmarks[i]);
+    }
+    free(distances_landmarks);
     free(landmarks);
-    free(graph->first_edge);
-    free(graph->edges);
-    free(graph);
+    
+    free(graphe->first_edge);
+    free(graphe->edges);
+    free(graphe);
 
-    return 0;
+    return EXIT_SUCCESS;
 }
