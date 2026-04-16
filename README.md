@@ -53,7 +53,7 @@ Par exemple, admettons qu'on ait :
 
 Sur un graphe de plusieurs millions d'arêtes, nous économisons ainsi 33% de mémoire vive en supprimant la redondance du noeud source.
 
-+ Accélération de l'accès aux voisins : pour retrouver ces voisins sans stocker la source, nous utilisons un tableau d'index appelé first_edge (= offsets). Il répond à la question "où commencent les voisins de mon noeud courant ?". La contiguïté mémoire permet au processeur de charger les blocs de voisins directement dans son cache (Prefetching spatial), garantissant une itération sur les voisins extrêmement rapide et un accès direct en O(1). Dans notre exemple, first_edge[0] = 0; first_edge[1] = 2; first_edge[2] = 3. Si on veut les voisins du noeud 0 :
++ Accélération de l'accès aux voisins : pour retrouver ces voisins sans stocker la source, nous utilisons un tableau d'index appelé first_edge (= offsets). Il répond à la question "où commencent les voisins de mon noeud courant ?". La contiguïté mémoire permet au processeur de charger les blocs de voisins directement dans son cache, garantissant une itération sur les voisins rapide et un accès direct en O(1). Dans notre exemple, first_edge[0] = 0; first_edge[1] = 2; first_edge[2] = 3. Si on veut les voisins du noeud 0 :
  - Début : first_edge[0] = 0
  - Fin : first_edge[1] = 2
  - Donc on lit les cases 0 et 1 (on exclut la borne de fin 2). On obtient bien les deux arêtes du noeud 0.
@@ -90,7 +90,7 @@ Notre tas stocke des structures element_tas_t contenant : (sommet, distance). C'
 ### L'approche Lazy Deletion vs Decrease Key
 C'est l'une des optimisations majeures de notre implémentation. En général quand on trouve un chemin plus court vers un sommet déjà présent dans le tas, on doit mettre à jour sa distance et le faire remonter (opération Decrease-Key).
 
-Mais chercher un élément au milieu d'un tas binaire prend un temps linéaire O(V), à moins de maintenir un lourd tableau de pointeurs inversés (pos[]) qui consomme de la mémoire et dégrade les performances du cache.
+Mais chercher un élément au milieu d'un tas binaire prend un temps linéaire O(V), à moins de maintenir un lourd tableau de pointeurs inversés (pos[]) qui consomme de la mémoire.
 
 C'est pourquoi on a choisi la **Lazy Deletion** :
 - Ajout de doublons : quand une meilleure distance est trouvée pour un noeud V, on insère une nouvelle paire (V, nouvelle_distance) dans le tas (sans supprimer l'ancienne).
