@@ -1,62 +1,60 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <float.h> 
-#include <sys/time.h>
-#include <math.h> // Indispensable pour la formule de Haversine (sin, cos, sqrt, atan2)
+#include <time.h> 
+#include <math.h>  // pour la formule de Haversine (sin, cos, sqrt, atan2)
 
-// ======================================================================
-// 1. STRUCTURES DE DONNÉES DE BASE (Communes avec Dijkstra)
-// ======================================================================
+// comme dijkstra :
 
+// on ne stocke pas le noeud de départ car CSR nous donne à quel noeud appartient l'arrête
 typedef struct {
-    int target;
-    double weight;
-} Edge;
+    int cible;
+    double poids;
+} arete_t;
 
+// toutes les arêtes sont dans un énorme tableau contigu
 typedef struct {
-    int num_nodes;
-    int num_edges;
-    int *first_edge; 
-    Edge *edges;     
-} CSRGraph;
+    int nb_noeuds;
+    int nb_aretes;
+    int *first_edge; // tableau des offsets = index
+    arete_t *edges;  // tableau de toutes les arêtes les unes à la suite des autres
+} csr_graph_t;
 
-// ======================================================================
-// 2. COORDONNÉES ET HEURISTIQUE (Spécifique à A*)
-// ======================================================================
 
+// coordonnées + heuristique :
+// Pour A* on doit connaitre les coordonnées pour calculer la distance à vol d'oiseau :
 typedef struct {
     double lat;
     double lon;
-} NodeCoord;
+} coordonnees_t;
+
 
 // Fonction pour charger nodes.txt
-NodeCoord* load_coords(const char *filename, int num_nodes) {
+coordonnees_t* charger_coordonnees(const char *filename, int nb_noeuds) {
     FILE *file = fopen(filename, "r");
     if (!file) {
-        printf("Erreur : Impossible d'ouvrir %s\n", filename);
+        fprintf(stderr, "Erreur : Impossible d'ouvrir %s\n", filename);
         return NULL;
     }
 
-    NodeCoord *coords = malloc(num_nodes * sizeof(NodeCoord));
+    coordonnees_t *coords = malloc(nb_noeuds * sizeof(coordonnees_t));
     int id;
     double lat, lon;
 
-    printf("Chargement des coordonnees GPS...\n");
+    printf("Chargement des coordonnees\n");
     while (fscanf(file, "%d %lf %lf", &id, &lat, &lon) == 3) {
-        if (id < num_nodes) {
+        if (id < nb_noeuds) {
             coords[id].lat = lat;
             coords[id].lon = lon;
         }
     }
-    
     fclose(file);
     return coords;
 }
 
-// Fonction Haversine : Calcule la distance à vol d'oiseau entre deux points GPS
-// Cette distance sert d'heuristique admissible h(v) pour A*
+// Fonction Haversine : Calcule la distance à vol d'oiseau entre deux points elle sera h(v) pour A*
 double haversine(double lat1, double lon1, double lat2, double lon2) {
-    double R = 6371000.0; // Rayon de la Terre en mètres
+    double R = 6371000.0; // Rayon moyen de la Terre en mètres
     double dLat = (lat2 - lat1) * M_PI / 180.0;
     double dLon = (lon2 - lon1) * M_PI / 180.0;
     lat1 = lat1 * M_PI / 180.0;
@@ -68,264 +66,285 @@ double haversine(double lat1, double lon1, double lat2, double lon2) {
     return R * c;
 }
 
-// ======================================================================
-// 3. CHARGEMENT DU GRAPHE (Bidirectionnel)
-// ======================================================================
+// comme dijkstra :
 
-CSRGraph* load_graph(const char *filename) {
+csr_graph_t* load_graph(const char *filename) {
     FILE *file = fopen(filename, "r");
-    if (!file) return NULL;
+    if (!file) {
+        fprintf(stderr, "Erreur : Impossible d'ouvrir le fichier %s\n", filename);
+        return NULL;
+    }
 
-    printf("Chargement du reseau routier (Bidirectionnel)...\n");
     int u, v;
     double w;
     int max_node_id = -1;
     int edge_count = 0;
 
+    // etape 1 : lecture de tout le fichier une 1ère fois pour trouver id max = (N) et compter le nombre d'arêtes total.
     while (fscanf(file, "%d %d %lf", &u, &v, &w) == 3) {
         if (u > max_node_id) max_node_id = u;
         if (v > max_node_id) max_node_id = v;
-        edge_count += 2; // Graphe non-orienté
+        edge_count += 2;
     }
+    int nb_noeuds = max_node_id + 1;
+    printf("-> %d noeuds et %d aretes trouves.\n", nb_noeuds, edge_count);
 
-    int num_nodes = max_node_id + 1;
-    CSRGraph *graph = malloc(sizeof(CSRGraph));
-    graph->num_nodes = num_nodes;
-    graph->num_edges = edge_count;
-    graph->first_edge = calloc(num_nodes + 1, sizeof(int));
-    graph->edges = malloc(edge_count * sizeof(Edge));
+    // maintenant qu'on connait les tailles, on peut allouer de la mémoire pour la structure CSR
+    csr_graph_t *graphe = malloc(sizeof(csr_graph_t));
+    graphe->nb_noeuds = nb_noeuds;
+    graphe->nb_aretes = edge_count;
+    graphe->first_edge = calloc(nb_noeuds + 1, sizeof(int));
+    graphe->edges = malloc(edge_count * sizeof(arete_t));
 
+    // etape 2 : on revient au debut du fichier, pour chaque (u,v, poids) on ajoute +1 au nb de voisins de u
     rewind(file);
     while (fscanf(file, "%d %d %lf", &u, &v, &w) == 3) {
-        graph->first_edge[u]++;
-        graph->first_edge[v]++;
+        graphe->first_edge[u]++;
+        graphe->first_edge[v]++; 
     }
 
+    // transformation en offsets (index)
     int sum = 0;
-    for (int i = 0; i <= num_nodes; i++) {
-        int degree = graph->first_edge[i];
-        graph->first_edge[i] = sum;
+    for (int i = 0; i <= nb_noeuds; i++) {
+        int degree = graphe->first_edge[i];
+        graphe->first_edge[i] = sum;
         sum += degree;
     }
 
-    int *current_offset = malloc((num_nodes + 1) * sizeof(int));
-    for (int i = 0; i <= num_nodes; i++) {
-        current_offset[i] = graph->first_edge[i];
+    // etape 3 : Remplir le tableau des aretes -> ranger les arêtes dans le bon ordre sans écraser nos repères
+    int *current_offset = malloc((nb_noeuds + 1) * sizeof(int));
+    for (int i = 0; i <= nb_noeuds; i++) {
+        current_offset[i] = graphe->first_edge[i];
     }
 
     rewind(file);
     while (fscanf(file, "%d %d %lf", &u, &v, &w) == 3) {
+        // Sens u -> v
         int index_u = current_offset[u]++;
-        graph->edges[index_u].target = v;
-        graph->edges[index_u].weight = w;
+        graphe->edges[index_u].cible = v;
+        graphe->edges[index_u].poids = w;
 
+        // Sens v -> u (bidirectionnel)
         int index_v = current_offset[v]++;
-        graph->edges[index_v].target = u;
-        graph->edges[index_v].weight = w;
+        graphe->edges[index_v].cible = u;
+        graphe->edges[index_v].poids = w;
     }
 
     free(current_offset);
     fclose(file);
-    return graph;
+    printf("succès du chargement du graphe CSR en mémoire\n");
+    
+    return graphe;
 }
 
-// ======================================================================
-// 4. FILE DE PRIORITÉ (Adaptée pour A*)
-// ======================================================================
+// File de priorité
 
-// Pour A*, le tas doit connaître f (le score total estimé) pour se trier
-// et g (la vraie distance parcourue) pour la vérification Lazy.
-typedef struct {
-    int node;
-    double f; // f(v) = g(v) + h(v)
-    double g; // g(v) = distance parcourue depuis le départ
-} HeapNode;
+// différente pour A* : on doit ici connaitre le score global f pour trier les noeuds et on doit garder la vraie distance g pour le lazy deletion
 
 typedef struct {
-    HeapNode *data;
-    int size;
-    int capacity;
-} MinHeap;
+    int sommet;
+    double f; // f(v) = g(v) + h(v) : c'est ça qui servira de clé de tri
+    double g; // g(v) = vraie distance parcourue depuis le départ
+} element_tas_t;
 
-MinHeap* create_heap(int capacity) {
-    MinHeap *heap = malloc(sizeof(MinHeap));
-    heap->capacity = capacity;
-    heap->size = 0;
-    heap->data = malloc(capacity * sizeof(HeapNode));
-    return heap;
+typedef struct {
+    element_tas_t *data;// tableau dynamique contenant les paires (sommet, dist)
+    int size; // nb d'éléments actuellement dans le tas
+    int capacity; // taille max tableau
+} tas_binaire_t;
+
+tas_binaire_t* tas_create(int capacity) {
+    tas_binaire_t *tas = malloc(sizeof(tas_binaire_t));
+    tas->capacity = capacity;
+    tas->size = 0;
+    tas->data = malloc(capacity * sizeof(element_tas_t));
+    return tas;
 }
 
-void swap(HeapNode *a, HeapNode *b) {
-    HeapNode temp = *a; *a = *b; *b = temp;
-}
-
-void push(MinHeap *heap, int node, double f, double g) {
-    if (heap->size == heap->capacity) return;
-    int i = heap->size++;
-    heap->data[i].node = node;
-    heap->data[i].f = f;
-    heap->data[i].g = g;
-    // On remonte dans le tas en comparant la valeur f
-    while (i != 0 && heap->data[(i - 1) / 2].f > heap->data[i].f) {
-        swap(&heap->data[i], &heap->data[(i - 1) / 2]);
-        i = (i - 1) / 2;
+void tas_destroy(tas_binaire_t * tas) {
+    if(tas != NULL) {
+        if(tas->data != NULL) free(tas->data);
+        free(tas);
     }
 }
 
-HeapNode pop(MinHeap *heap) {
-    if (heap->size <= 0) return (HeapNode){-1, -1.0, -1.0};
-    if (heap->size == 1) return heap->data[--heap->size];
-    HeapNode root = heap->data[0];
-    heap->data[0] = heap->data[--heap->size];
+void tas_ajout(tas_binaire_t * tas, int sommet, double f, double g) {
+    if (tas->size >= tas->capacity) return; // si le tas est plein on abandonne, on ne devrait pas être confronté à ça comme capacity = nb arêtes
+
+    // etape 1 : nouvel élément tout à la fin de l'arbre (à l'indice size)
+    int i = tas->size;
+    tas->data[i].sommet = sommet;
+    tas->data[i].f = f;
+    tas->data[i].g = g;
+    tas->size++;
+    
+    // etape 2 : la remontée  : le parent est plus petit que ses enfants
+    // donc on échange si pas le cas de l'élément qu'on vient d'ajouter
+    // MAIS cette fois on se base du le score heuristique f et non que la distance
+    while (i > 0) {
+        int parent = (i - 1) / 2;
+        if (tas->data[i].f < tas->data[parent].f) {
+            element_tas_t temp = tas->data[i];
+            tas->data[i] = tas->data[parent];
+            tas->data[parent] = temp;
+            i = parent;
+        } else {
+            break; // si enfant plus grande que parent arbre valide donc stop boucle
+        }
+    }
+}
+
+element_tas_t tas_extraire_min(tas_binaire_t * tas) {
+    if (tas->size <= 0) return (element_tas_t){-1, -1.0, -1.0}; // structure d'erreur si arbre vide
+    
+    element_tas_t racine = tas->data[0];
+    tas->size--; // on baisse la taille du tas
+    tas->data[0] = tas->data[tas->size];  // on place le tout dernier élément à la racine de l'arbre pour boçucher le trou
+    
+    // etape 3 : descente : on replace la nouvelle racine (trop grande pour être à la racine) à sa bonne position en faisant des comparaisons avec les enfants et en des échanges si nécessaires
+    // MAIS cette fois basée sur score f et non juste la distance
     int i = 0;
     while (1) {
-        int left = 2 * i + 1;
-        int right = 2 * i + 2;
-        int smallest = i;
-        if (left < heap->size && heap->data[left].f < heap->data[smallest].f)
-            smallest = left;
-        if (right < heap->size && heap->data[right].f < heap->data[smallest].f)
-            smallest = right;
-        if (smallest != i) {
-            swap(&heap->data[i], &heap->data[smallest]);
-            i = smallest;
+        int gauche = 2 * i + 1;
+        int droit = 2 * i + 2;
+        int min = i;
+        
+        if (gauche < tas->size && tas->data[gauche].f < tas->data[min].f)
+            min = gauche;
+        if (droit < tas->size && tas->data[droit].f < tas->data[min].f)
+            min = droit;
+        // echange
+        if (min != i) {
+            element_tas_t temp = tas->data[i];
+            tas->data[i] = tas->data[min];
+            tas->data[min] = temp;
+            i = min;
         } else {
+            // cas où parent est plus petit que les enfants donc arbre équilibré donc stop la boucle
             break;
         }
     }
-    return root;
+    return racine;
 }
 
-void free_heap(MinHeap *heap) {
-    free(heap->data);
-    free(heap);
-}
+// Algo A* :
 
-// ======================================================================
-// 5. CHRONOMÉTRAGE
-// ======================================================================
+void algo_a_star(csr_graph_t *graphe, coordonnees_t *coords, int depart, int arrivee) {
+    printf("\nRecherche A* de %d vers %d...\n", depart, arrivee);
 
-double get_time_in_seconds() {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return tv.tv_sec + tv.tv_usec / 1000000.0;
-}
+    // comme dijkstra, on garde vraie distance parcourue g :
+    // on fait deux tableaux :
+    // 1 pour garder en mémoire le plus court chemin trouvé jusqu'à présent pour chaque noeud
+    // 2 permet de retracer le chemin à l'envers une fois arrivé
+    double *distances = malloc(graphe->nb_noeuds * sizeof(double));
+    int *predecesseurs = malloc(graphe->nb_noeuds * sizeof(int));
 
-// ======================================================================
-// 6. ALGORITHME A*
-// ======================================================================
-
-void a_star(CSRGraph *graph, NodeCoord *coords, int start_node, int target_node) {
-    printf("\n=== Lancement de A* ===\n");
-    printf("Recherche du plus court chemin : %d -> %d\n", start_node, target_node);
-
-    double *dist = malloc(graph->num_nodes * sizeof(double));
-    int *prev = malloc(graph->num_nodes * sizeof(int));
-
-    for (int i = 0; i < graph->num_nodes; i++) {
-        dist[i] = DBL_MAX; 
-        prev[i] = -1;      
+    for (int i = 0; i < graphe->nb_noeuds; i++) {
+        distances[i] = DBL_MAX; 
+        predecesseurs[i] = -1;      
     }
+    // temps de l'algo
+    struct timespec before, after;
+    clockid_t clk_id = CLOCK_REALTIME;
+    clock_gettime(clk_id, &before);
 
-    MinHeap *heap = create_heap(graph->num_edges); 
-    dist[start_node] = 0.0;
+    tas_binaire_t * tas = tas_create(graphe->nb_aretes); 
+    distances[depart] = 0.0;
     
-    // Calcul de l'heuristique initiale h(start)
-    double h_start = haversine(coords[start_node].lat, coords[start_node].lon, 
-                               coords[target_node].lat, coords[target_node].lon);
+    // Calcul de l'heuristique initiale h : départ
+    double h_depart = haversine(coords[depart].lat, coords[depart].lon, 
+                                coords[arrivee].lat, coords[arrivee].lon);
     
-    // On insère le noeud de départ. f = h_start, g = 0.0
-    push(heap, start_node, h_start, 0.0);
+    // on insère le noeud de départ, f = h_depart et distance réelle g = 0
+    tas_ajout(tas, depart, h_depart, 0.0);
 
-    // Variables d'instrumentation requises par le cahier des charges
-    long long extractions = 0;
-    long long relaxations = 0;
-    double start_time = get_time_in_seconds();
+    // performance de l'algo
+    long long nb_extractions = 0;
+    long long nb_relaxations = 0;
 
-    while (heap->size > 0) {
-        HeapNode current = pop(heap);
-        int u = current.node;
+    while (tas->size > 0) {
 
-        // Approche Lazy : on utilise current.g pour vérifier si le chemin est obsolète
-        if (current.g > dist[u]) continue;
+        element_tas_t courant = tas_extraire_min(tas); // on extrait le noeud le plus proche du point de départ
+        int u = courant.sommet;
 
-        extractions++;
-        if (u == target_node) break; // Arrêt précoce essentiel pour les performances
+        // Modification de lazy deletion pour A* :
+        // on compare g sauvegardée dans le tas avec la meilleure distance conneu dans le tableau.
+        if (courant.g > distances[u]) continue;
 
-        int start_edge = graph->first_edge[u];
-        int end_edge = graph->first_edge[u + 1];
+        nb_extractions++;
 
-        for (int i = start_edge; i < end_edge; i++) {
-            int v = graph->edges[i].target;
-            double weight = graph->edges[i].weight;
+        // Modification du early exit pour A* :
+        // Comme h ne surestime JAMAIS, quand la destination sort du tas, on sait qu'on a trouvé le plus court chemin
+        if (u == arrivee) break; 
 
-            // Si on trouve un meilleur chemin pour atteindre v
-            if (dist[u] + weight < dist[v]) {
-                relaxations++; 
-                dist[v] = dist[u] + weight;
-                prev[v] = u;
+        // recupération des voisins de u (en O(1) grace CSR)
+        int debut_aretes = graphe->first_edge[u]; // indice de dep
+        int fin_aretes = graphe->first_edge[u + 1]; // indice de fin
+
+        // parcourt arêtes sortantes du sommet u
+        for (int i = debut_aretes; i < fin_aretes; i++) {
+            int v = graphe->edges[i].cible;
+            double poids = graphe->edges[i].poids; // cout de l'arete entre u et v
+
+
+            // relaxation : si on passe par u, est ce que le chemin pour atteindre v est plus court que l'ancienne distance qu'on connaissait pr v ?
+            if (distances[u] + poids < distances[v]) { // oui
+                nb_relaxations++; 
+                distances[v] = distances[u] + poids;
+                predecesseurs[v] = u;
                 
-                // Calcul de l'heuristique h(v)
+                // calcul de la nouvelle heuristique h(v) pour le voisin
                 double h = haversine(coords[v].lat, coords[v].lon, 
-                                     coords[target_node].lat, coords[target_node].lon);
+                                     coords[arrivee].lat, coords[arrivee].lon);
                 
-                // f(v) = g(v) + h(v)
-                double f = dist[v] + h;
+                // nouveau score f(v) = vraie distance g + estimation h
+                double f = distances[v] + h;
                 
-                // On insère dans le tas avec f pour le tri, et g pour la vérification future
-                push(heap, v, f, dist[v]);
+                // on insère dans le tas le score f pour trier et g pour lazy deletion
+                tas_ajout(tas, v, f, distances[v]);
             }
         }
     }
-
-    double time_total = get_time_in_seconds() - start_time;
-
-    // Affichage formaté pour les métriques
-    if (dist[target_node] == DBL_MAX) {
-        printf("-> Echec : Aucun chemin trouve.\n");
+    // fin de chrono
+    clock_gettime(clk_id, &after);
+    double temps_sec = (after.tv_sec - before.tv_sec) + (after.tv_nsec - before.tv_nsec) / 1e9;
+    // si toujjours infini alors que tas vidé, alors les 2 points ne sont pas connectés dans le graphe
+    if (distances[arrivee] == DBL_MAX) {
+        fprintf(stderr, "Erreur : Aucun chemin trouvé.\n");
     } else {
-        printf("-> Succes !\n");
-        printf("-> Distance totale (g) : %.2f metres\n", dist[target_node]);
-        printf("\n--- METRIQUES D'EVALUATION A* ---\n");
-        printf("1. Nombre d'extractions (noeuds visites) : %lld\n", extractions);
-        printf("2. Nombre de relaxations                 : %lld\n", relaxations);
-        printf("3. Temps total d'execution               : %.6f secondes\n", time_total);
+        printf("Succes !\n");
+        printf("- Distance totale (g) : %.2f metres\n", distances[arrivee]);
+        printf("- Extractions (Noeuds visites) : %lld\n", nb_extractions);
+        printf("- Relaxations                  : %lld\n", nb_relaxations);
+        printf("- Temps d'execution            : %lf secondes\n", temps_sec);
     }
-    printf("========================================\n\n");
 
-    free(dist);
-    free(prev);
-    free_heap(heap);
+    free(distances);
+    free(predecesseurs);
+    tas_destroy(tas);
 }
 
-// ======================================================================
-// 7. PROGRAMME PRINCIPAL (Test)
-// ======================================================================
-
 int main() {
-    // 1. Charger le graphe et les coordonnées
-    CSRGraph *graph = load_graph("edges.txt");
-    if (!graph) return 1;
+    csr_graph_t *graphe = load_graph("edges.txt");
+    if (!graphe) return EXIT_FAILURE;
 
-    NodeCoord *coords = load_coords("nodes.txt", graph->num_nodes);
+    coordonnees_t *coords = charger_coordonnees("nodes.txt", graphe->nb_noeuds);
     if (!coords) {
-        free(graph->first_edge);
-        free(graph->edges);
-        free(graph);
-        return 1;
+        free(graphe->first_edge);
+        free(graphe->edges);
+        free(graphe);
+        return EXIT_FAILURE;
     }
 
-    // 2. Lancer la requête A* // Rappel: change l'arrivee pour le noeud lointain que tu as trouvé avec Dijkstra
     int depart = 15;
     int arrivee = 1466593; 
 
-    a_star(graph, coords, depart, arrivee);
+    algo_a_star(graphe, coords, depart, arrivee);
 
-    // 3. Libérer la mémoire
     free(coords);
-    free(graph->first_edge);
-    free(graph->edges);
-    free(graph);
+    free(graphe->first_edge);
+    free(graphe->edges);
+    free(graphe);
 
-    return 0;
+    return EXIT_SUCCESS;
 }
