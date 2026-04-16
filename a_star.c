@@ -312,7 +312,6 @@ void algo_a_star(csr_graph_t *graphe, coordonnees_t *coords, int depart, int arr
     if (distances[arrivee] == DBL_MAX) {
         fprintf(stderr, "Erreur : Aucun chemin trouvé.\n");
     } else {
-        printf("Succes !\n");
         printf("- Distance totale (g) : %.2f metres\n", distances[arrivee]);
         printf("- Extractions (Noeuds visites) : %lld\n", nb_extractions);
         printf("- Relaxations                  : %lld\n", nb_relaxations);
