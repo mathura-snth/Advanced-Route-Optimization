@@ -11,12 +11,8 @@ typedef struct {
 typedef struct {
     int num_nodes;
     int num_edges;
-
-    // tableau des offsets = index
-    int *first_edge;
-
-    //tableau de toutes les arêtes les unes à la suite des autres
-    Edge *edges;
+    int *first_edge; // tableau des offsets = index
+    Edge *edges;    //tableau de toutes les arêtes les unes à la suite des autres
 } CSRGraph;
 
 
@@ -38,11 +34,10 @@ CSRGraph* load_graph(const char *filename) {
         if (v > max_node_id) max_node_id = v;
         edge_count++;
     }
-
     int num_nodes = max_node_id + 1;
     printf("-> %d noeuds et %d aretes trouves.\n", num_nodes, edge_count);
 
-    // maintenant qu'on connait les tailles, on peut malloc pour la structure CSR
+    // maintenant qu'on connait les tailles, on peut allouer de la mémoire pour la structure CSR
     CSRGraph *graph = malloc(sizeof(CSRGraph));
     graph->num_nodes = num_nodes;
     graph->num_edges = edge_count;
@@ -66,7 +61,7 @@ CSRGraph* load_graph(const char *filename) {
         sum += degree;
     }
 
-    // Troisieme passage : Remplir le tableau des aretes -> ranger les arêtes dans le bon ordre sans écraser nos repères
+    // etape 3 : Remplir le tableau des aretes -> ranger les arêtes dans le bon ordre sans écraser nos repères
     // on crée une copie temporaire des index pour savoir où écrire
     int *current_offset = malloc((num_nodes + 1) * sizeof(int));
     for (int i = 0; i <= num_nodes; i++) {
