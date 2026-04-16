@@ -107,14 +107,14 @@ Cette méthode augmente la taille maximale du tas (qui doit être bornée par le
 
 Complexité : Avec notre implémentation via tas binaire et format CSR, l'algorithme s'exécute avec une complexité temporelle de O((V + E) \log V) dans le pire des cas, ce qui permet de traiter des réseaux routiers de la taille de l'Île-de-France très rapidement, en quelques secondes.
 
-## 4. Algorithme A* et Heuristique Géographique
+## 4. Algorithme A* et Heuristique
 Contrairement à Dijkstra qui explore le graphe dans toutes les directions, l'algorithme A* optimise réellement la recherche en l'orientant vers la destination.
 
-La différence avec Dijkstra est dans la manière dont on trie les nœuds dans notre file de priorité.
+La différence avec Dijkstra est dans la manière dont on trie les noeuds dans notre file de priorité.
 Pour chaque sommet v , on calcule un score `f(v) = g(v) + h(v)`.
 Avec : 
--  `g(v)` (Coût réel) : La distance exacte parcourue depuis le point de départ jusqu'à v. C'est la valeur utilisée par Dijkstra.
--  `h(v)` (Heuristique) : Une estimation de la distance restante entre v et l'arrivée.
+- `g(v)` (Coût réel) : La distance exacte parcourue depuis le point de départ jusqu'à v. C'est la valeur utilisée par Dijkstra.
+- `h(v)` (Heuristique) : Une estimation de la distance restante entre v et l'arrivée.
 
 Pour que A* trouve toujours le chemin le plus court, l'heuristique h(v) doit être **admissible**. Cela signifie qu'elle ne doit **jamais surestimer** la distance réelle
 
@@ -127,10 +127,35 @@ Le passage de Dijkstra à A* a nécessité une modification de la structure de n
 
 **Déroulement et Performance**
 - Contrairement à Dijkstra, A* nécessite de charger en mémoire le fichier `nodes.txt` pour accéder instantanément aux latitudes/longitudes de chaque sommet.
-- À chaque itération, A* extrait le nœud qui minimise la distance totale estimée.
+- À chaque itération, A* extrait le noeud qui minimise la distance totale estimée.
 
-Ainsi on a réellement un gain d'efficacité : dans nos tests sur le réseau Île-de-France, A* réduit énormément le nombre d'extractions (nœuds visités) par rapport à Dijkstra. En ignorant les routes qui s'éloignent de la destination, le temps de calcul est divisé par un facteur significatif tout en garantissant le même résultat optimal.
- 
+Ainsi on a réellement un gain d'efficacité : dans nos tests sur le réseau Île-de-France, A* réduit énormément le nombre d'extractions ( noeuds visités) par rapport à Dijkstra. En ignorant les routes qui s'éloignent de la destination, le temps de calcul est divisé par un facteur significatif tout en garantissant le même résultat optimal.
+
+
+## 5. Algorithme ALT
+Limite géométrique de A* : sur un réseau routier réel, la distance à vol d'oiseau peut être très loin de la réalité (à cause de fleuves, de montagnes ou autre). 
+
+L'algorithme ALT permet d'avoir une heuristique plus puissante, basée sur la topologie réelle du graphe routier, sans avoir besoin des coordonnées GPS.
+
+### L'inégalité triangulaire
+Dans un triangle formé par notre noeud courant U, notre destination V, et un point de repère fixe appelé, le Landmark L, la distance directe entre U et V sera toujours **supérieure ou égale** à la différence de leurs distances respectives vers le Landmark :
+
+`dist(U, V) >= |dist(U, L) - dist(V, L)|`
+
+Puisque cette différence ne **surestime jamais** la vraie distance routière, elle constitue une heuristique parfaite.
+
+### Fonctionnement de l'algorithme
+L'implémentation de ALT se divise en deux phases distinctes :
+
+1. Phase de pré-calcul, avant de répondre à la requete :
+ - On sélectionne K noeuds aléatoires sur la carte (les Landmarks).
+ - Pour chacun de ces Landmarks, on lance un algorithme de **Dijkstra** sans heuristique et sans condition d'arrêt pour calculer la distance entre ce Landmark et absolument tous les autres noeuds.
+ - Ces distances sont stockées en mémoire dans un tableau.
+
+2. Phase de requête, quand un utilisateur demande un trajet entre un point de départ et une arrivée :
+  - L'algorithme de parcours fonctionne comme A* (avec tas binaire trié par le score f).
+  - **L'heuristique change :** Au lieu d'utiliser la trigonométrie (Haversine), le moteur interroge ses tableaux de pré-calculs. Pour chaque voisin, il calcule `|dist(voisin, L) - dist(arrivee, L)|` pour tous les Landmarks L.
+  - L'algorithme garde la **valeur maximale** trouvée parmi tous les Landmarks.
 
 ---------- A FAIRE
 ***TESTER D'AUTRES FORMAT au lieu de CSR, COMME tableau de pointeurs vers des listes chaînées (une liste par noeud contenant ses voisins). et trouver que ça a 2 défauts majeurs :
@@ -154,7 +179,7 @@ dij :
 
 a_star :
 
-***Ainsi on a réellement un gain d'efficacité : dans nos tests sur le réseau Île-de-France, A* réduit énormément le nombre d'extractions (nœuds visités) par rapport à Dijkstra. En ignorant les routes qui s'éloignent de la destination, le temps de calcul est divisé par un facteur significatif (quel facteur) tout en garantissant le même résultat optimal
+***Ainsi on a réellement un gain d'efficacité : dans nos tests sur le réseau Île-de-France, A* réduit énormément le nombre d'extractions ( noeuds visités) par rapport à Dijkstra. En ignorant les routes qui s'éloignent de la destination, le temps de calcul est divisé par un facteur significatif (quel facteur) tout en garantissant le même résultat optimal
 facteur 3-5 à tester
 ***
 
