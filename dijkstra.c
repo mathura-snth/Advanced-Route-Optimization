@@ -3,10 +3,6 @@
 #include <float.h> // Pour DBL_MAX (l'infini)
 #include <sys/time.h>
 
-// ==========================================
-// 1. STRUCTURES DE DONNÉES (Graphe CSR)
-// ==========================================
-
 typedef struct {
     int target;
     double weight;
@@ -18,10 +14,6 @@ typedef struct {
     int *first_edge; 
     Edge *edges;     
 } CSRGraph;
-
-// ==========================================
-// 2. CHARGEMENT DU GRAPHE (BIDIRECTIONNEL)
-// ==========================================
 
 CSRGraph* load_graph(const char *filename) {
     FILE *file = fopen(filename, "r");

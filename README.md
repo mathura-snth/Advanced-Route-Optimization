@@ -14,14 +14,14 @@ Les données brutes proviennent d'extractions OpenStreetMap (fichiers `.osm.pbf`
 ### Étapes de traitement
 
 Pour transformer les données brutes d'OpenStreetMap en un graphe exploitable par notre moteur en C, nous avons basé notre script d'extraction sur la bibliothèque `pyosmium`.
-- Nous avons appliqué le design pattern recommandé par la documentation officielle de pyosmium : le SimpleHandler (lecture en steaming -> appel de nos fonctions que si rencontre d'une entité géo).
+- Nous avons appliqué le design pattern recommandé par la documentation officielle de pyosmium : le SimpleHandler (lecture en streaming -> appel de nos fonctions que si rencontre d'une entité géo).
 
 // ce qu'on a apporté comme modifications :
 - Structures des données des .txt générés :
   1) self.nodes sous forme de dictionnaire : pour stocker temporairement les intersections. (dico pour rechercher par ID en temps constant $O(1)$, indispensable pour récupérer instantanément les coordonnées GPS lors de la lecture des routes)
   2) self.edges sous forme de liste : pour accumuler les segments de route. L'ajout en fin de liste facilite la conversion finale vers un DataFrame pandas
 
-- On a filtré pour ne conserver que les types de routes ('motorway', 'trunk' etc) pertinents. Enfin,la sortie a été entièrement restructurée, on a remappé les identifiants OSM pour n'avoir que des vameurs contigues entre 0 et N.
+- On a filtré pour ne conserver que les types de routes ('motorway', 'trunk' etc) pertinents. Enfin,la sortie a été entièrement restructurée, on a remappé les identifiants OSM pour n'avoir que des valeurs contigues entre 0 et N.
 
 - Comme on a que des points GPS (longitute, latitude), on n'a pas la longueur des routes. On ajoute donc a notre script Python la formule Haversine pour calculer la longueur physique de chaque petit bout de rue entre deux intersections voisines. On calcule donc la distance entre un point A et son voisin direct B, qui devient le poids de l'arête dans le fichier edges.txt.
 
@@ -53,7 +53,7 @@ Par exemple, admettons qu'on ait :
 
 Sur un graphe de plusieurs millions d'arêtes, nous économisons ainsi 33% de mémoire vive en supprimant la redondance du nœud source.
 
-+ Accélération de l'accès aux voisins : pour retrouver ces voisins sans stocker la source, nous utilisons un tableau d'index appelé first_edge (= offsets). Il répond à la question "où commencent les voisins de mon noeud courant ?". La contiguïté mémoire permet au processeur de charger les blocs de voisins directement dans son cache (Prefetching spatial), garantissant une itération sur les voisins extrêmement rapide et un accès direct en O(1). Dans notre exemple, first_edge[0]=0; first_edge[1]=2; first_edge[2]=3. Si on veut les voisins du nœud 0 :
++ Accélération de l'accès aux voisins : pour retrouver ces voisins sans stocker la source, nous utilisons un tableau d'index appelé first_edge (= offsets). Il répond à la question "où commencent les voisins de mon noeud courant ?". La contiguïté mémoire permet au processeur de charger les blocs de voisins directement dans son cache (Prefetching spatial), garantissant une itération sur les voisins extrêmement rapide et un accès direct en O(1). Dans notre exemple, first_edge[0] = 0; first_edge[1] = 2; first_edge[2] = 3. Si on veut les voisins du nœud 0 :
   - Début : first_edge[0] = 0
   - Fin : first_edge[1] = 2
   - Donc on lit les cases 0 et 1 (on exclut la borne de fin 2). On obtient bien les deux arêtes du nœud 0.
@@ -71,7 +71,18 @@ On doit résoudre 2 problèmes :
 Pour cela on implémente en 3 lectures du fichier :
 1. **Évaluation :** 1ère lecture du fichier pour identifier l'ID maximal ($N$ nœuds) et compter le total des arêtes, permettant une allocation mémoire (`malloc`) sans gaspillage.
 2. **Calcul des Degrés :** 2ème lecture du fichier pour compter le nombre d'arêtes sortantes pour chaque nœud (= nombre de voisins de chaque noeud), puis transformation de ces degrés en tableau d'index (offsets) via une somme (accumulation) qui permet de générer `first_edge`.
-3. **Peuplement :** 3èm lectire pour parcourir le fichier désordonné, on utiulise une copie temporaire (current_offset), chaque arête lue est insérée dans la case mémoire qui lui était réservée (bon nombre de résevation grâce à 1ère lecture). On a alors un remplissage groupé, contiguë et définitif du tableau `edges`.
+3. **Remplissage :** 3ème lecture pour parcourir le fichier désordonné, on utilise une copie temporaire (current_offset), chaque arête lue est insérée dans la case mémoire qui lui était réservée (bon nombre de résevation grâce à 1ère lecture). On a alors un remplissage groupé, contiguë et définitif du tableau `edges`.
+
+
+## Algorithme de Dijkstra et file de priorité
+
+
+
+
+
+
+
+
 
 
 
@@ -83,7 +94,6 @@ Pour cela on implémente en 3 lectures du fichier :
 
 ***TESTER SI ON ECONOMISE RÉELLEMENT 33% 
 ***
-
 -----------
 --------------------------------------------
 
