@@ -2,3 +2,8 @@
 *.txt
 *.pbf
 *.osm
+# Ignorer les exécutables compilés
+*.exe
+
+# Ignorer les fichiers système macOS
+.DS_Store
