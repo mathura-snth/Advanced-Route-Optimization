@@ -24,8 +24,7 @@ static double haversine(double lat1, double lon1, double lat2, double lon2) {
 
 // Algo A* :
 
-resultat_t algo_a_star(csr_graph_t *graphe, coordonnees_t *coords, int depart, int arrivee) {
-    printf("\nRecherche A* de %d vers %d...\n", depart, arrivee);
+resultat_t a_star(csr_graph_t *graphe, coordonnees_t *coords, int depart, int arrivee) {    printf("\nRecherche A* de %d vers %d...\n", depart, arrivee);
 
     // comme dijkstra, on garde vraie distance parcourue g :
     // on fait deux tableaux :

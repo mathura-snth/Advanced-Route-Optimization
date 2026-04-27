@@ -1,9 +1,12 @@
+build/
+bin/
+
 *.csv
 *.txt
 *.pbf
 *.osm
-# Ignorer les exécutables compilés
 *.exe
+*.o
+*.out
 
-# Ignorer les fichiers système macOS
 .DS_Store

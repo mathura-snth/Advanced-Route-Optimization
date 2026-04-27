@@ -90,3 +90,4 @@ int main() {
     free_graph(graphe);
 
     return EXIT_SUCCESS;
+}
