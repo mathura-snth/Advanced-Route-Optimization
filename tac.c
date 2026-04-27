@@ -16,20 +16,21 @@ void tas_destroy(tas_binaire_t * tas) {
     }
 }
 
-void tas_ajout(tas_binaire_t * tas, int sommet, double dist) {
+void tas_ajout(tas_binaire_t * tas, int sommet, double score, double cout_reel) {
     if (tas->size >= tas->capacity) return; // si le tas est plein on abandonne, on ne devrait pas être confronté à ça comme capacity = nb arêtes
     
     // etape 1 : nouvel élément tout à la fin de l'arbre (à l'indice size)
     int i = tas->size;
     tas->data[i].sommet = sommet;
-    tas->data[i].distance = dist;
+    tas->data[i].score = score;
+    tas->data[i].cout_reel = cout_reel;
     tas->size++;
     
     // tape 2 : la remontée (binaire diminuer) : la parent est plus petit que ses enfants
     // donc on échange si pas le cas de l'élément qu'on vient d'ajouter
     while (i > 0) {
         int parent = (i - 1) / 2; // dans arbre binaire
-        if (tas->data[i].distance < tas->data[parent].distance) {
+        if (tas->data[i].score < tas->data[parent].score) {
             element_tas_t temp = tas->data[i];
             tas->data[i] = tas->data[parent];
             tas->data[parent] = temp;
@@ -55,9 +56,9 @@ element_tas_t tas_extraire_min(tas_binaire_t * tas) {
         int min = i;
         
         // si enfant gauche existe et est plus petit que le noeud actuel
-        if (gauche < tas->size && tas->data[gauche].distance < tas->data[min].distance)
+        if (gauche < tas->size && tas->data[gauche].score < tas->data[min].score)
             min = gauche;
-        if (droit < tas->size && tas->data[droit].distance < tas->data[min].distance)
+        if (droit < tas->size && tas->data[droit].score < tas->data[min].score)
             min = droit;
         // echange
         if (min != i) {
