@@ -43,7 +43,7 @@ class MapHandler(osmium.SimpleHandler):
 
 print("Lecture du .pbf")
 handler = MapHandler()
-handler.apply_file("ile-de-france-260403.osm.pbf")
+handler.apply_file("../data/ile-de-france-260403.osm.pbf")
 
 print(f"nb routes trouvées = {len(handler.edges)}.")
 edges_df = pd.DataFrame(handler.edges, columns=['u', 'v', 'length'])
@@ -56,9 +56,9 @@ edges_df['u_mapped'] = edges_df['u'].map(mapping)
 edges_df['v_mapped'] = edges_df['v'].map(mapping)
 
 print("Sauvegarde des fichiers")
-edges_df[['u_mapped', 'v_mapped', 'length']].to_csv("edges.txt", sep=' ', index=False, header=False)
+edges_df[['u_mapped', 'v_mapped', 'length']].to_csv("../data/edges.txt", sep=' ', index=False, header=False)
 
 # Fichier des noeuds
 nodes_data = [(mapping[n_id], handler.nodes[n_id][0], handler.nodes[n_id][1]) for n_id in unique_nodes]
 nodes_df = pd.DataFrame(nodes_data, columns=['id_mapped', 'lat', 'lon']).sort_values('id_mapped')
-nodes_df.to_csv("nodes.txt", sep=' ', index=False, header=False)
+nodes_df.to_csv("../data/nodes.txt", sep=' ', index=False, header=False)
