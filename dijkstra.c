@@ -32,7 +32,7 @@ resultat_t dijkstra(csr_graph_t *graphe, int depart, int arrivee) {
     tas_binaire_t * tas = tas_create(graphe->nb_aretes);
 
     distances[depart] = 0.0;
-    tas_ajout(tas, depart, 0.0);
+    tas_ajout(tas, depart, 0.0, 0.0);
 
     // performance de l'algo
     long long nb_extractions = 0;
@@ -48,7 +48,7 @@ resultat_t dijkstra(csr_graph_t *graphe, int depart, int arrivee) {
         // PUISQU'ON INSÈRE DES DOUBLONS PLUTÔT QUE DE METTRE À JOUR LE TAS, 
         // ON PEUT DÉPILER UN SOMMET DONT LA DISTANCE EST OBSOLÈTE (PLUS GRANDE QUE LA MEILLEURE TROUVÉE ENTRE TEMPS).
         // SI C'EST LE CAS, ON L'IGNORE ET ON PASSE AU SUIVANT DIRECTEMENT. ÇA ÉVITE DES CALCULS INUTILES.
-        if (courant.distance > distances[u]) continue; 
+        if (courant.cout_reel > distances[u]) continue; 
         
         // noeud validé et exploré => incrémentation du compteur
         nb_extractions++;
@@ -71,7 +71,7 @@ resultat_t dijkstra(csr_graph_t *graphe, int depart, int arrivee) {
                 nb_relaxations++; // on a trouvé raccourci
                 distances[v] = distances[u] + poids; // maj nouvelle distance dans tableau résultat
                 predecesseurs[v] = u; // memo qu'on est passé par u pour aller vers v
-                tas_ajout(tas, v, distances[v]); // ajout de la paire dans tas binaire
+                tas_ajout(tas, v, distances[v], distances[v]); // ajout de la paire dans tas binaire
             }
         }
     }

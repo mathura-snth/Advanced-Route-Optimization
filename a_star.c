@@ -3,6 +3,9 @@
 #include <float.h> 
 #include <time.h> 
 #include <math.h>  // pour la formule de Haversine (sin, cos, sqrt, atan2)
+#include "algos.h"
+#include "tas.h"
+#include "graph.h"
 
 // comme dijkstra :
 

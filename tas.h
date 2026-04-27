@@ -3,11 +3,6 @@
 
 // Structure du tas binaire : on stocke la paire (sommet, distance) pour savoir qui extraire
 // dans dijkstra, le tas binaire doit trier les nombres mais aussi savoir a quel somemt appartient la distance pour l'extraire
-typedef struct {
-    int sommet; // num du noeud dans graphe
-    double distance; // clé de tri = distance cumulée depuis le départ
-} element_tas_t;
-
 // Il peut maintenant servir pour Dijkstra (sans heuristique) et A* (avec heuristique)
 typedef struct {
     int sommet; // num du noeud dans graphe
