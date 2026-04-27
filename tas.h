@@ -1,9 +1,13 @@
 #ifndef TAS_H
 #define TAS_H
 
-// Structure du tas binaire : on stocke la paire (sommet, distance) pour savoir qui extraire
+
+// File de priorité (Tas binaire) :
+// File de priorité différente pour A* : on doit ici connaitre le score global f 
+// pour trier les noeuds et on doit garder la vraie distance g pour le lazy deletion.
+// (Pour Dijkstra, score et cout_reel vaudront simplement la même valeur).
 // dans dijkstra, le tas binaire doit trier les nombres mais aussi savoir a quel somemt appartient la distance pour l'extraire
-// Il peut maintenant servir pour Dijkstra (sans heuristique) et A* (avec heuristique)
+// La structure peut maintenant servir pour Dijkstra (sans heuristique) et A* (avec heuristique)
 typedef struct {
     int sommet; // num du noeud dans graphe
     double score; // clé de tri (pour Dijkstra ça reste la distance et pour A* ça devient f=g+h)
