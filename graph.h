@@ -17,7 +17,8 @@ typedef struct {
     arete_t *edges;  // tableau de toutes les arêtes les unes à la suite des autres
 } csr_graph_t;
 
-// Pour A* et potentiellement ALT
+// coordonnées + heuristique :
+// Pour A* on doit connaitre les coordonnées pour calculer la distance à vol d'oiseau :
 typedef struct {
     double lat;
     double lon;
