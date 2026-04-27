@@ -91,4 +91,6 @@ resultat_t dijkstra(csr_graph_t *graphe, int depart, int arrivee) {
     free(distances);
     free(predecesseurs);
     tas_destroy(tas);
+    resultat_t res = {distances[arrivee], nb_extractions, nb_relaxations, temps_sec};
+    return res;
 }
