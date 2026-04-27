@@ -8,6 +8,8 @@
 // (Pour Dijkstra, score et cout_reel vaudront simplement la même valeur).
 // dans dijkstra, le tas binaire doit trier les nombres mais aussi savoir a quel somemt appartient la distance pour l'extraire
 // La structure peut maintenant servir pour Dijkstra (sans heuristique) et A* (avec heuristique)
+// pour alt : même file de priorité qu'A* mais différente heuristique
+// on utilise, comme a_star, le score global f pour trier et la distance réelle g pour la lazy deletion
 typedef struct {
     int sommet; // num du noeud dans graphe
     double score; // clé de tri (pour Dijkstra ça reste la distance et pour A* ça devient f=g+h)

@@ -12,5 +12,6 @@ typedef struct {
 
 // Prototypes des algorithmes
 resultat_t dijkstra(csr_graph_t *g, int start, int end);
-
+resultat_t a_star(csr_graph_t *g, coordonnees_t *coords, int start, int end);
+resultat_t alt(csr_graph_t *g, int start, int end, int nb_l, double **dist_l);
 #endif
