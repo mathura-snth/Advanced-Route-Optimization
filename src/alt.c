@@ -73,8 +73,6 @@ double heuristique_alt(int u, int arrivee, int nb_landmarks, double **distances_
 }
 
 resultat_t alt(csr_graph_t *graphe, int depart, int arrivee, int nb_landmarks, double **distances_landmarks) {
-    printf("\nRecherche ALT de %d vers %d\n", depart, arrivee);
-
     double *distances = malloc(graphe->nb_noeuds * sizeof(double));
     int *predecesseurs = malloc(graphe->nb_noeuds * sizeof(int));
 
@@ -134,15 +132,6 @@ resultat_t alt(csr_graph_t *graphe, int depart, int arrivee, int nb_landmarks, d
     clock_gettime(clk_id, &after);
     double temps_sec = (after.tv_sec - before.tv_sec) + (after.tv_nsec - before.tv_nsec) / 1e9;
 
-    if (distances[arrivee] == DBL_MAX) {
-        fprintf(stderr, "Erreur : Aucun chemin trouvé.\n");
-    } else {
-        printf("Succes !\n");
-        printf("- Distance totale (g) : %.2f metres\n", distances[arrivee]);
-        printf("- Extractions (Noeuds visites) : %lld\n", nb_extractions);
-        printf("- Relaxations                  : %lld\n", nb_relaxations);
-        printf("- Temps d'execution            : %lf secondes\n", temps_sec);
-    }
     resultat_t res = {distances[arrivee], nb_extractions, nb_relaxations, temps_sec};
     free(distances);
     free(predecesseurs);

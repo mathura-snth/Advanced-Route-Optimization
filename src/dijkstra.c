@@ -7,8 +7,6 @@
 #include "graph.h"
 
 resultat_t dijkstra(csr_graph_t *graphe, int depart, int arrivee) {
-    printf("\nRecherche de %d vers %d\n", depart, arrivee);
-
     // on fait deux tableaux :
     // 1 pour garder en mémoire le plus court chemin trouvé jusqu'à présent pour chaque noeud
     // 2 permet de retracer le chemin à l'envers une fois arrivé
@@ -78,15 +76,6 @@ resultat_t dijkstra(csr_graph_t *graphe, int depart, int arrivee) {
     // fin de chrono
     clock_gettime(clk_id, &after);
     double temps_sec = (after.tv_sec - before.tv_sec) + (after.tv_nsec - before.tv_nsec) / 1e9;
-    // si toujjours infini alors que tas vidé, alors les 2 points ne sont pas connectés dans le graphe
-    if (distances[arrivee] == DBL_MAX) {
-        fprintf(stderr, "Erreur : Aucun chemin trouvé.\n");
-    } else {
-        printf("- Distance trouvee : %.2f\n", distances[arrivee]);
-        printf("- Extractions      : %lld\n", nb_extractions);
-        printf("- Relaxations      : %lld\n", nb_relaxations);
-        printf("- Temps d'execution: %lf secondes\n", temps_sec);
-    }
 
     free(distances);
     free(predecesseurs);

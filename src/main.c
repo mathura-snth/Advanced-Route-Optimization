@@ -6,9 +6,9 @@
 
 // Petite fonction utilitaire pour afficher les résultats de chaque algo proprement
 void afficher_resultat(const char* nom_algo, resultat_t res) {
-    printf("\n RESULTATS : %s\n", nom_algo);
+    printf("\n Resultat : %s\n", nom_algo);
     if (res.distance == __DBL_MAX__) {
-        printf("-> ECHEC : Aucun chemin trouve.\n");
+        printf("-> ECHEC : Aucun chemin trouvé.\n");
     } else {
         printf("- Distance trouvee : %.2f metres\n", res.distance);
         printf("- Extractions      : %lld noeuds\n", res.extractions);

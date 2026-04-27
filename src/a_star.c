@@ -24,8 +24,7 @@ static double haversine(double lat1, double lon1, double lat2, double lon2) {
 
 // Algo A* :
 
-resultat_t a_star(csr_graph_t *graphe, coordonnees_t *coords, int depart, int arrivee) {    printf("\nRecherche A* de %d vers %d...\n", depart, arrivee);
-
+resultat_t a_star(csr_graph_t *graphe, coordonnees_t *coords, int depart, int arrivee) {
     // comme dijkstra, on garde vraie distance parcourue g :
     // on fait deux tableaux :
     // 1 pour garder en mémoire le plus court chemin trouvé jusqu'à présent pour chaque noeud
@@ -105,14 +104,6 @@ resultat_t a_star(csr_graph_t *graphe, coordonnees_t *coords, int depart, int ar
     // si toujjours infini alors que tas vidé, alors les 2 points ne sont pas connectés dans le graphe
 
     resultat_t res = {distances[arrivee], nb_extractions, nb_relaxations, temps_sec};
-    if (distances[arrivee] == DBL_MAX) {
-        fprintf(stderr, "Erreur : Aucun chemin trouvé.\n");
-    } else {
-        printf("- Distance totale (g) : %.2f metres\n", distances[arrivee]);
-        printf("- Extractions (Noeuds visites) : %lld\n", nb_extractions);
-        printf("- Relaxations                  : %lld\n", nb_relaxations);
-        printf("- Temps d'execution            : %lf secondes\n", temps_sec);
-    }
 
     free(distances);
     free(predecesseurs);

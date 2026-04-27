@@ -57,9 +57,7 @@ static double witness_search(csr_graph_t *graphe, int depart, int arrivee, int n
     return meilleur_chemin;
 }
 
-ch_graph_t* ch_preprocess(csr_graph_t *graphe) {
-    printf("\n--- DEBUT DU PRE-CALCUL CH (Cela peut prendre du temps) ---\n");
-    
+ch_graph_t* ch_preprocess(csr_graph_t *graphe) {    
     ch_graph_t *ch = malloc(sizeof(ch_graph_t));
     ch->num_nodes = graphe->nb_noeuds;
     ch->rank = malloc(graphe->nb_noeuds * sizeof(int));
@@ -76,7 +74,7 @@ ch_graph_t* ch_preprocess(csr_graph_t *graphe) {
     ch->up_edges = malloc(max_up_edges * sizeof(arete_t));
     int up_edges_count = 0;
     
-    printf("1. Filtrage des aretes montantes existantes...\n");
+    // Filtrage des aretes montantes existantes
     for(int u = 0; u < graphe->nb_noeuds; u++) {
         for(int i = graphe->first_edge[u]; i < graphe->first_edge[u+1]; i++) {
             int v = graphe->edges[i].cible;
@@ -89,7 +87,7 @@ ch_graph_t* ch_preprocess(csr_graph_t *graphe) {
         }
     }
     
-    printf("2. Contraction et Witness Search (Creation des raccourcis)...\n");
+    // Contraction et Witness Search (Creation des raccourcis)
     for(int v = 0; v < graphe->nb_noeuds; v++) {
         if (v > 0 && v % 20000 == 0) printf("   -> %d / %d noeuds contractes\n", v, graphe->nb_noeuds);
         
@@ -127,7 +125,7 @@ ch_graph_t* ch_preprocess(csr_graph_t *graphe) {
     // Remarque : Pour que ch->up_first_edge soit parfait, il faudrait faire un tri (Bucket Sort) du tableau up_edges.
     ch->up_first_edge = calloc((graphe->nb_noeuds + 1), sizeof(int));
     
-    printf("-> Pre-traitement CH termine (%d aretes dans le graphe montant).\n", up_edges_count);
+    // fin du pré-traitement
     return ch;
 }
 
