@@ -1,21 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-
-// structure de données
-// on ne stocke pas le noeud de départ car CSR nous donne à quel noeud appartient l'arrête
-typedef struct {
-    int cible;
-    double poids;
-} arete_t;
-
-// toutes les arêtes sont dans un énorme tableau contigu
-typedef struct {
-    int nb_noeuds;
-    int nb_aretes;
-    int *first_edge; // tableau des offsets = index
-    arete_t *edges;  // tableau de toutes les arêtes les unes à la suite des autres
-} csr_graph_t;
-
+#include "graph.h"
 
 csr_graph_t* load_graph(const char *filename) {
     FILE *file = fopen(filename, "r");
@@ -29,11 +14,12 @@ csr_graph_t* load_graph(const char *filename) {
     int max_node_id = -1;
     int edge_count = 0;
 
-    // etape 1 : lecture de tout le fichier une 1ère fois pour trouver id max = (N) et compter le nombre d'arêtes total.
+    // etape 1 : lecture de tout le fichier une 1ère fois pour trouver id max = (N)
+    // et compter le nombre d'arêtes total.
     while (fscanf(file, "%d %d %lf", &u, &v, &w) == 3) {
         if (u > max_node_id) max_node_id = u;
         if (v > max_node_id) max_node_id = v;
-        edge_count += 2; // pour Dijkstra aille dans les deux sens on considère le graphe comme non orienté donc bidirectionnel donc 
+        edge_count += 2; // pour que Dijkstra aille dans les deux sens on considère le graphe comme non orienté donc bidirectionnel donc 
     }
     int nb_noeuds = max_node_id + 1;
     printf("-> %d noeuds et %d aretes trouves.\n", nb_noeuds, edge_count);
@@ -46,7 +32,7 @@ csr_graph_t* load_graph(const char *filename) {
     graphe->first_edge = calloc(nb_noeuds + 1, sizeof(int));
     graphe->edges = malloc(edge_count * sizeof(arete_t));
 
-    // etape 2 : on revient au debut du fichier, pour chaque (u,v, poids) on ajoute +1 au nb de voisins de u
+    // etape 2 : on revient au debut du fichier, pour compte le nombre de voisins par noeud (pour chaque (u,v) -> +1 pour u et pour v)
     rewind(file);
     while (fscanf(file, "%d %d %lf", &u, &v, &w) == 3) {
         graphe->first_edge[u]++;
@@ -106,17 +92,33 @@ void afficher_infos_noeud(csr_graph_t *graphe, int id_noeud) {
     }
 }
 
-int main() {
-    csr_graph_t *graphe = load_graph("edges.txt");
-
-    if (graphe) {
-        // test affichage voisins du noeud d'id 0
-        afficher_infos_noeud(graphe, 0);
-        
-        free(graphe->first_edge);
-        free(graphe->edges);
-        free(graphe);
+// Fonction pour charger nodes.txt
+coordonnees_t* charger_coordonnees(const char *filename, int nb_noeuds) {
+    FILE *file = fopen(filename, "r");
+    if (!file) {
+        fprintf(stderr, "Erreur : Impossible d'ouvrir %s\n", filename);
+        return NULL;
     }
 
-    return 0;
+    coordonnees_t *coords = malloc(nb_noeuds * sizeof(coordonnees_t));
+    int id;
+    double lat, lon;
+
+    // Chargement des coordonnees
+    while (fscanf(file, "%d %lf %lf", &id, &lat, &lon) == 3) {
+        if (id < nb_noeuds) {
+            coords[id].lat = lat;
+            coords[id].lon = lon;
+        }
+    }
+    fclose(file);
+    return coords;
+}
+
+void free_graph(csr_graph_t *g) {
+    if (g) {
+        free(g->first_edge);
+        free(g->edges);
+        free(g);
+    }
 }
