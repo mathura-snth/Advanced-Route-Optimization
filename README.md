@@ -3,18 +3,19 @@
 Ce projet vise à construire un moteur de calcul d'itinéraires sur des réseaux routiers.
 L'objectif est d'implémenter et de comparer plusieurs algorithmes de plus court chemin (Dijkstra, A*, ALT, Contraction Hierarchies) en optimisant la représentation en mémoire et les temps de requête.
 
+---
 ## 1. Extraction des Données (Python)
 
-Les données brutes proviennent d'extractions OpenStreetMap (fichiers `.osm.pbf`). Au lieu d'utiliser le format XML (.osm) traité directement en C, nous avons préféré utiliser une pipeline hybride **Python (Osmium/Pandas) + PBF** pour deux raisons :
+Les données brutes proviennent d'extractions OpenStreetMap (fichiers `.osm.pbf`). Au lieu d'utiliser le format XML (.osm) traité directement en C, on a préféré utiliser une pipeline hybride **Python (Osmium/Pandas) + PBF** pour deux raisons :
 
 1. D'après https://learnosm.org/fr/osm-data/file-formats/, le format binaire PBF est une version compressée, ce qui permet de manipuler des zones denses (comme l'Île-de-France) sans saturer la mémoire. Le passage par un format texte XML aurait eu en plus un coût de parsing bien plus important. (Sachant qu'il s'agisse du format `.osm` ou `.osm.pbf`, les deux fichiers contiennent les mêmes informations).
  
-2. Nous avons utilisé Python pour fournir au moteur C un graphe sous forme de fichiers. Cela augmente la vitesse de chargement et nous permet de nous concentrer sur l'optimisation algorithmique.
+2. on a utilisé Python pour fournir au moteur C un graphe sous forme de fichiers. Cela augmente la vitesse de chargement et nous permet de nous concentrer sur l'optimisation algorithmique.
 
 ### Étapes de traitement
 
-Pour transformer les données brutes d'OpenStreetMap en un graphe exploitable par notre moteur en C, nous avons basé notre script d'extraction sur la bibliothèque `pyosmium`.
-- Nous avons appliqué le design pattern recommandé par la documentation officielle de pyosmium : le SimpleHandler (lecture en streaming ligne par ligne et appel de nos fonctions que si l'on rencontre une entité géographique correspondante).
+Pour transformer les données brutes d'OpenStreetMap en un graphe exploitable par notre moteur en C, on a basé notre script d'extraction sur la bibliothèque `pyosmium`.
+- on a appliqué le design pattern recommandé par la documentation officielle de pyosmium : le SimpleHandler (lecture en streaming ligne par ligne et appel de nos fonctions que si l'on rencontre une entité géographique correspondante).
 
 Ce qu'on a apporté comme modifications/optimisations :
 - Structures des données des .txt générés :
@@ -35,6 +36,7 @@ avec a = sin((lat2 - lat1)/2)^2 + cos(lat1) * cos(lat2) * sin((lon2 - lon1)/2)^2
 * `nodes.txt` : contient les sommets (id mappé, latitude, longitude). Nécessaire pour les heuristiques géométriques (comme A*).
 * `edges.txt` : contient les arêtes (source, destination, distance).
 
+---
 ## 2. Le Graphe CSR : Représentation en Mémoire
 
 L'énoncé du projet souligne un point important : sur des réseaux routiers de grande taille (plusieurs centaines de milliers d'arêtes), la structure mémoire compte énormément. 
@@ -76,10 +78,11 @@ Pour cela on implémente en 3 lectures du fichier :
 2. **Calcul des degrés :** 2ème lecture du fichier pour compter le nombre d'arêtes sortantes pour chaque noeud (= nombre de voisins de chaque noeud), puis transformation de ces degrés en tableau d'index (offsets) via une somme (accumulation) qui permet de générer `first_edge`.
 3. **Remplissage :** 3ème lecture pour parcourir le fichier désordonné, on utilise une copie temporaire (current_offset), chaque arête lue est insérée dans la case mémoire qui lui était réservée (bon nombre de résevation grâce à 1ère lecture). On a alors un remplissage contigu du tableau `edges`.
 
-
+---
 ## 3 Algorithme de Dijkstra et file de priorité - stratégie paresseuse
+
 L'algorithme de Dijkstra est une exploration itérative du sommet le plus proche du point de départ.
-Pour que cette recherche soit efficace, nous avons besoin d'une structure de données capable de nous renvoyer le minimum donc on a mis en place une file de priorité sous la forme d'un tas binaire.
+Pour que cette recherche soit efficace, on a besoin d'une structure de données capable de nous renvoyer le minimum donc on a mis en place une file de priorité sous la forme d'un tas binaire.
 
 ### Le tas binaire
 Au lieu d'utiliser des pointeurs et des allocations dynamiques pour chaque noeud de l'arbre ce qui ralentirait l'exécution, on modélise notre tas binaire dans un tableau.
@@ -116,7 +119,9 @@ Dans un tas de Fibonacci, on ne cherche pas à avoir une structure parfaite à c
 
 **Complexité** : Avec notre implémentation via tas binaire et format CSR, l'algorithme s'exécute avec une complexité temporelle de O((V + E) \log V) dans le pire des cas, ce qui permet de traiter le réseau routiers en moins d'une minute.
 
+---
 ## 4. Algorithme A* et Heuristique
+
 Contrairement à Dijkstra qui explore le graphe dans toutes les directions, l'algorithme A* optimise réellement la recherche en l'orientant vers la destination.
 
 La différence avec Dijkstra est dans la manière dont on trie les noeuds dans notre file de priorité.
@@ -140,7 +145,9 @@ Le passage de Dijkstra à A* a nécessité une modification de la structure de n
 
 Ainsi on a réellement un gain d'efficacité : dans nos tests sur le réseau Île-de-France, A* réduit énormément le nombre d'extractions (noeuds visités) par rapport à Dijkstra. En ignorant les routes qui s'éloignent de la destination, le temps de calcul est divisé tout en ayant le même résultat optimal.
 
+---
 ## 5. Algorithme ALT
+
 Limite de A* : sur un réseau routier réel, la distance à vol d'oiseau est souvent très loin de la réalité (à cause de fleuves ou autre). 
 
 L'algorithme ALT permet d'avoir une heuristique plus puissante, basée sur la topologie réelle du graphe routier, sans avoir besoin des coordonnées GPS.
@@ -165,25 +172,29 @@ L'implémentation de ALT se divise en deux phases distinctes :
   - **L'heuristique change :** Au lieu d'utiliser (Haversine), on utilise les tableaux de pré-calculs : pour chaque voisin, on calcule `|dist(voisin, L) - dist(arrivee, L)|` pour tous les landmarks L.
   - L'algorithme garde la **valeur maximale** trouvée parmi tous les landmarks.
 
-## 6. Contraction Hierarchiquees (CH)
-https://jlazarsfeld.github.io/ch.150.project/
-Pour aller encore plus vite, on a implémenté l'algorithme des Contraction Hierarchiques, qui repose sur une hiérarchisation *offline* du graphe. L'énoncé de ce projet suggérait cette méthode, et nous avons trouvé intéressant de l'implémenter car sa mécanique de raccourcis réutilise un concept fondamental vu en cours.
+---
+## 6. Contraction Hierarchies (CH)
 
-### Phase 1 : Pré-traitement
-Le principe est de supprimer (contracter) les nœuds un par un selon un ordre d'importance (le "rang").
-Quand on veut contracter un nœud V, on regarde ses voisins entrants U et sortants W. L'objectif est de savoir si V est indispensable pour aller de U à W.
-- **Witness Search (Recherche Témoin)** : On lance un mini-Dijkstra entre U et W en s'interdisant formellement de passer par le nœud V.
-- **Création de raccourcis** : Si le chemin trouvé sans V est plus long que le coût direct `(U -> V) + (V -> W)`, cela signifie que la suppression de V fausserait les distances. On est donc obligé de créer une arête virtuelle (un "raccourci") entre U et W.
-- **Le Graphe Upward** : À la fin de la contraction, le graphe est filtré pour ne conserver que les arêtes (originales et raccourcis) qui pointent d'un nœud de rang inférieur vers un nœud de rang supérieur.
+Pour aller encore plus vite, on a implémenté l'algorithme des Contraction Hierarchies (CH). Cette méthode repose sur une phase de **pré-traitement préalable** (très lourde en calcul) et une phase de **requête** (ultra-rapide). 
 
-### Phase 2 : Réelle recherche (Dijkstra Bidirectionnel)
-La recherche du plus court chemin devient extrêmement rapide car elle navigue sur ce graphe "Upward" allégé.
+L'énoncé de ce projet suggérait cette méthode, et on a conçu notre implémentation en nous appuyant sur l'étude sur les CH de John Lazarsfeld (https://jlazarsfeld.github.io/ch.150.project/).
+
+L'idée principale des CH est la création de raccourcis virtuels, tout comme la **compression de chemins** que l'on a vu en cours pour la structure **Union-Find**. 
+Dans Union-Find, lorsqu'une recherche traverse un long chemin vers une racine, on relie directement le noeud à la racine pour "aplatir" l'arbre et accélérer les recherches futures. Les Contraction Hierarchies appliquent le même raisonnement à un réseau routier : on crée des liaisons directes pour contourner les intersections inutiles et accélérer la requête finale.
+
+### Phase 1 : Pré-traitement (Contraction des noeuds)
+Le principe est de supprimer (contracter) les noeuds un par un selon un ordre d'importance (le rang).
+- **ordre de contraction (Node Ordering)** : Selon Lazarsfeld, l'efficacité de l'algorithme dépend d'un tri des noeuds basé sur leur Edge Difference (la différence entre les raccourcis créés et les arêtes supprimées). Dans notre implémentation `ch_preprocess`, on a fait le choix de conception d'utiliser un ordre simple (rangs de $0$ à $N-1$) ce qui n'est pas ce qu'il y a de plus optimal. Il existe en effet encore d'autres choix d'ordre, avec là encore la possibilité d'une stratégie paresseuse un peu trop poussée pour notre niveau.
+- **Recherche Témoin** : pour contracter un noeud $V$, il faut chercher un "chemin témoin" entre ses voisins $U$ et $W$ sans jamais utiliser $V$. C'est ce que fait notre fonction `witness_search` via `if(v == noeud_interdit) continue;`.
+- **Création de Raccourcis** : si le chemin témoin est plus long, un raccourci doit être ajouté d'où la condition `if(cout_via_v < cout_sans_v)`. Si elle est vérifiée on créé une arête virtuelle directe (notre compression de chemin).
+- **Le Graphe Ascendant** : à la fin de la contraction, le graphe est filtré. Comme l'indique l'étude de Lazarsfeld, on ne garde en mémoire que les arêtes (originales et raccourcis) qui pointent d'un noeud de rang inférieur vers un noeud de rang supérieur (`if(ch->rank[u] < ch->rank[v])`).
+
+### Phase 2 : Réelle recherche - Dijkstra Bidirectionnel
+C'est comme une recherche bidirectionnelle restreinte. Elle devient très rapide car elle se base uniquement sur le **graphe ascendant** qui est allégé.
 L'algorithme lance deux recherches simultanées avec deux files de priorité :
-- Une avancée **"Aller"** (Forward) depuis le nœud de départ, qui monte le long des rangs supérieurs.
-- Une avancée **"Retour"** (Backward) depuis la destination qui, contrairement à l'intuition, "monte" elle aussi le long du graphe Upward.
-- **Condition d'arrêt** : L'algorithme surveille les intersections des deux recherches. Dès que les distances minimales dans les deux tas dépassent le meilleur chemin trouvé lors d'un croisement, on garantit l'optimalité et la boucle s'arrête.
-
-
+- Un tas **"Aller"** depuis le noeud de départ, qui monte le long des rangs supérieurs.
+- Un tas **"Retour"** depuis la destination qui monte elle aussi le long du graphe ascendant.
+- **Condition d'arrêt** : On fait attention aux intersections des deux recherches et dès que les distances minimales au sommet des deux tas dépassent le meilleur chemin déjà trouvé lors d'un croisement, l'optimalité est garantie. Le code force alors l'arrêt précoce de la boucle, évitant d'explorer tout le reste du réseau.
 
 
 
@@ -200,13 +211,6 @@ L'algorithme lance deux recherches simultanées avec deux files de priorité :
 
 
 ---------- A FAIRE
-***TESTER D'AUTRES FORMAT au lieu de CSR, COMME tableau de pointeurs vers des listes chaînées (une liste par noeud contenant ses voisins). et trouver que ça a 2 défauts majeurs :
-1. **Surcharge mémoire (Overhead) :** Chaque élément d'une liste chaînée nécessite le stockage d'un pointeur supplémentaire (`next`).
-2. **Défaut de localité (Cache Miss) :** Les éléments alloués via de multiples appels à `malloc` sont dispersés de manière aléatoire dans la RAM. Lors du parcours des voisins (l'opération la plus fréquente dans Dijkstra), le processeur subit de constants "cache misses", ce qui effondre les performances.***
-
-***TESTER SI ON ECONOMISE RÉELLEMENT 33% 
-***
-
 dij :
 
 *** tester ? Au lieu d'utiliser des pointeurs et des allocations dynamiques pour chaque noeud de l'arbre (ce qui causerait des défauts de localité spatiale et ralentirait l'exécution), 
