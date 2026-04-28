@@ -4,7 +4,7 @@
 #include "graph.h"
 #include "algos.h"
 
-// Petite fonction utilitaire pour afficher les résultats de chaque algo proprement
+// Petite fonction pour afficher les résultats de chaque algo proprement
 void afficher_resultat(const char* nom_algo, resultat_t res) {
     printf("\n Resultat : %s\n", nom_algo);
     if (res.distance == __DBL_MAX__) {
@@ -29,11 +29,43 @@ int main() {
         free_graph(graphe);
         return EXIT_FAILURE;
     }
+    // précalcul alt
+    int nb_landmarks = 10;
+    int *landmarks = malloc(nb_landmarks * sizeof(int));
+    srand(42); // On fixe la seed => reproductibilité
+    
+    printf("[ALT] Sélection de %d landmarks et calcul des distances...\n", nb_landmarks);
+    struct timespec pre_before, pre_after;
+    clock_gettime(CLOCK_REALTIME, &pre_before);
+    
+    for (int i = 0; i < nb_landmarks; i++) {
+        landmarks[i] = rand() % graphe->nb_noeuds;
+    }
+    double **distances_landmarks = malloc(nb_landmarks * sizeof(double*));
+    for (int i = 0; i < nb_landmarks; i++) {
+        distances_landmarks[i] = dijkstra_pour_landmark(graphe, landmarks[i]);
+    }
+    
+    clock_gettime(CLOCK_REALTIME, &pre_after);
+    double temps_precalc_alt = (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1e9;
+    printf("-> Pre-calculs ALT termines en %.2f secondes.\n", temps_precalc_alt);
+
+    // précalcul ch
+    printf("\n[CH] Lancement du pré-traitement Contraction Hierarchies...\n");
+    printf("     (ATTENTION : Cela peut prendre plusieurs minutes !)\n");
+    struct timespec ch_before, ch_after;
+    clock_gettime(CLOCK_REALTIME, &ch_before);
+
+    ch_graph_t *ch = ch_preprocess(graphe); 
+    
+    clock_gettime(CLOCK_REALTIME, &ch_after);
+    double temps_precalc_ch = (ch_after.tv_sec - ch_before.tv_sec) + (ch_after.tv_nsec - ch_before.tv_nsec) / 1e9;
+    printf("-> Pre-calculs CH termines en %.2f secondes.\n", temps_precalc_ch);
 
     int depart = 15;
     int arrivee = 1466593; 
+    printf("Recherche d'itineraire du noeud %d vers le noeud %d\n", depart, arrivee);
 
-    printf("Lancement du moteur GPS : %d -> %d\n", depart, arrivee);
 
     // 2) DIJKSTRA (baseline)
     resultat_t res_dijkstra = dijkstra(graphe, depart, arrivee);
@@ -44,37 +76,10 @@ int main() {
     afficher_resultat("A* (Vol d'oiseau)", res_astar);
 
     // 4. ALT (landmarks et inégalité triangulaire)
-    int nb_landmarks = 10;
-    int *landmarks = malloc(nb_landmarks * sizeof(int));
-    
-    // On fixe la seed => reproductibilité
-    srand(42); 
-    printf("\n Pré-calcul pour alt\n");
-    printf("Sélection de %d landmarks\n", nb_landmarks);
-    for (int i = 0; i < nb_landmarks; i++) {
-        landmarks[i] = rand() % graphe->nb_noeuds;
-    }
-    
-    struct timespec pre_before, pre_after;
-    clock_gettime(CLOCK_REALTIME, &pre_before);
-    
-    // tableau de distances pour chaque landmarks
-    double **distances_landmarks = malloc(nb_landmarks * sizeof(double*));
-    for (int i = 0; i < nb_landmarks; i++) {
-        distances_landmarks[i] = dijkstra_pour_landmark(graphe, landmarks[i]);
-    }
-    
-    clock_gettime(CLOCK_REALTIME, &pre_after);
-    double temps_precalc_alt = (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1e9;
-    printf("-> Pre-calculs ALT termines en %.2f secondes.\n", temps_precalc_alt);
-
-    // requete alt
     resultat_t res_alt = alt(graphe, depart, arrivee, nb_landmarks, distances_landmarks);
     afficher_resultat("ALT (Landmarks)", res_alt);
 
     // 5. CONTRACTION HIERARCHIES
-    ch_graph_t *ch = ch_preprocess(graphe); // Fait le Witness Search et crée le graphe Upward
-    
     resultat_t res_ch = ch_search(ch, depart, arrivee);
     afficher_resultat("CONTRACTION HIERARCHIES", res_ch);
 
