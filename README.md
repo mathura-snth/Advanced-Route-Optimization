@@ -25,10 +25,10 @@ Ce qu'on a apporté comme modifications/optimisations :
 
 - Comme on a que des points GPS (longitute, latitude), on n'a pas la longueur des routes. On ajoute donc a notre script Python la formule Haversine pour calculer la longueur physique de chaque petit bout de rue entre deux intersections voisines. On calcule donc la distance entre un point A et son voisin direct B, qui devient le poids de l'arête dans le fichier edges.txt.
 
-**Point sur la formule Haversine :**
+**Formule Haversine :**
 C'est la distance du grand cercle entre deux points d'une sphère, à partir de leurs longitudes et latitudes (d'après Wikipedia).
 d = 2R * arcin(sqrt(a))
- = 2R * arctan(sqrt(a) / sqrt(1 - a)) -> on a opté pour cette équivalence pour éviter des plantages : à cause des arrondis du processeur, le calcul de a peut parfois donner un résultat supérieur à 1 (ex: 1.000000000002) or la fonction arcsin ne supporte pas les valeurs supérieures à 1.
+ = 2R * arctan(sqrt(a) / sqrt(1 - a)) -> on a opté pour cette équivalence pour éviter des plantages : à cause des arrondis du processeur (*le calcul de a peut parfois donner un résultat supérieur à 1 (ex: 1.000000000002) or la fonction arcsin ne supporte pas les valeurs supérieures à 1*).
 avec a = sin((lat2 - lat1)/2)^2 + cos(lat1) * cos(lat2) * sin((lon2 - lon1)/2)^2.
 
 **Fichiers générés :**
@@ -51,7 +51,7 @@ Par exemple, admettons qu'on ait :
  - Approche classique pour 0 : On stocke (0, 1, 5) et (0, 2, 8) -> 6 valeurs.
  - Approche CSR pour 0 : On stocke uniquement les cibles et poids (1, 5) et (2, 8) -> 4 valeurs.
 
-Sur un graphe de plusieurs millions d'arêtes, nous économisons ainsi 33% de mémoire vive en supprimant la redondance du noeud source.
+Sur un graphe de plusieurs millions d'arêtes, nous économisons de mémoire vive en supprimant la redondance du noeud source.
 
 + Accélération de l'accès aux voisins : pour retrouver ces voisins sans stocker la source, nous utilisons un tableau d'index appelé first_edge (= offsets). Il répond à la question "où commencent les voisins de mon noeud courant ?". La contiguïté mémoire permet au processeur de charger les blocs de voisins directement dans son cache, garantissant une itération sur les voisins rapide et un accès direct en O(1). Dans notre exemple, first_edge[0] = 0; first_edge[1] = 2; first_edge[2] = 3. Si on veut les voisins du noeud 0 :
  - Début : first_edge[0] = 0
@@ -66,7 +66,7 @@ Ainsi on a :
 ### Construction du CSR
 On doit résoudre 2 problèmes :
 1. la taille des tableaux alloués dynamiquement doit être définie à l'avance
-2. les données géographiques du fichier brut sont "dans le désordre" (les routes d'un même noeud ne sont pas écrites les unes à la suite des autres)
+2. les données géographiques du fichier brut ne sont pas ordonnées (les routes d'un même noeud ne sont pas écrites les unes à la suite des autres)
 
 Pour cela on implémente en 3 lectures du fichier :
 1. **Évaluation :** 1ère lecture du fichier pour identifier l'ID maximal (N noeuds) et compter le total des arêtes, permettant une allocation mémoire (`malloc`) sans gaspillage.
@@ -74,28 +74,35 @@ Pour cela on implémente en 3 lectures du fichier :
 3. **Remplissage :** 3ème lecture pour parcourir le fichier désordonné, on utilise une copie temporaire (current_offset), chaque arête lue est insérée dans la case mémoire qui lui était réservée (bon nombre de résevation grâce à 1ère lecture). On a alors un remplissage groupé, contiguë et définitif du tableau `edges`.
 
 
-## 3 Algorithme de Dijkstra et file de priorité
+## 3 Algorithme de Dijkstra et file de priorité - stratégie paresseuse
 L'algorithme de Dijkstra est une exploration itérative du sommet le plus proche du point de départ.
 Pour que cette recherche soit efficace, nous avons besoin d'une structure de données capable de nous renvoyer le minimum donc on a mis en place une file de priorité sous la forme d'un tas binaire.
 
 ### Le tas binaire (Min-Heap)
 Au lieu d'utiliser des pointeurs et des allocations dynamiques pour chaque noeud de l'arbre ce qui ralentirait l'exécution, on modélise notre tas binaire dans un tableau.
-La relation d'ordre fixée est l'inférieur ou égal (on parle de min-heap)
+La relation d'ordre fixée est l'inférieur ou égal (min-heap)
 Pour un élément à l'indice i :
 - Son parent se trouve à l'indice (i - 1) / 2
 - Son enfant gauche se trouve à l'indice 2i + 1
 - Son enfant droit se trouve à l'indice 2i + 2
 Notre tas stocke des structures element_tas_t contenant : (sommet, distance). C'est la distance qui sert de clé de tri pour l'arbre.
 
-### L'approche Lazy Deletion vs Decrease Key
-C'est l'une des optimisations majeures de notre implémentation. En général quand on trouve un chemin plus court vers un sommet déjà présent dans le tas, on doit mettre à jour sa distance et le faire remonter (opération Decrease-Key).
+### La problématique de la mise à jour
+Dans une implémentation classique, lorsqu'un chemin plus court est découvert vers un sommet déjà dans le tas, on fait une diminution de clé. Mais cette opération est très coûteuse dans un tas binaire :
+  - coût de recherche : localiser un nœud spécifique au milieu d'un tableau de tas prend un temps linéaire $O(V)$.
+  - indexation : pour ramener ce coût à $O(\log V)$, il faudrait avoir un tableau d'index inversés qu'on met à jour à chaque échange de nœuds, ce qui complexifie le code et alourdit l'empreinte mémoire vive.
 
-Mais chercher un élément au milieu d'un tas binaire prend un temps linéaire O(V), à moins de maintenir un lourd tableau de pointeurs inversés (pos[]) qui consomme de la mémoire.
+### L'approche paresseuse
 
-C'est pourquoi on a choisi la **Lazy Deletion** :
-- Ajout de doublons : quand une meilleure distance est trouvée pour un noeud V, on insère une nouvelle paire (V, nouvelle_distance) dans le tas (sans supprimer l'ancienne).
-- Filtrage à l'extraction : L'arbre garantit que la paire contenant la distance la plus courte remontera à la racine en premier. Donc quand l'ancienne paire (inutile et plus grande) finira par sortir du tas plus tard, notre algorithme l'ignorera (`if (courant.distance > distances[u]) continue;`).
-Cette méthode augmente la taille maximale du tas (qui doit être bornée par le nombre total d'arêtes E, et non de sommets V), mais elle simplifie le code et accélère l'exécution.
+Pour résoudre cela nous nous sommes inspirés de la stratégie paresseuse vue en cours pour les tas de Fibonacci.
+
+Dans un tas de Fibonacci, on ne cherche pas à avoir une structure parfaite à chaque modification, on se permet d'avoir une liste brouillon d'arbres non consolidés pour gagner du temps pendant des insertions. Dans le cas du Dijkstra, on a :
+
+- l'opération la plus coûteuse : la recherche et la mise à jour immédiate d'un nœud lors d'une relaxation.
+
+- report du coût : plutôt que de mettre à jour un noeud existant, quand une meilleure distance est trouvée pour un noeud V, on insère une nouvelle paire (V, nouvelle_distance) dans le tas (sans supprimer l'ancienne).
+
+- nettoyage à l'extraction : le prix de cette paresse n'est payé qu'au moment de l'opération extraire_min. C'est là que nous effectuons la suppression paresseuse : puisque les propriétés du tas garantissent que la paire contenant la distance la plus courte remontera toujours à la racine en premier, nous traitons la donnée valide en premier. Donc quand les anciennes paires (doublons obsolètes et plus grands) finissent par sortir du tas plus tard, l'algorithme les identifie immédiatement en comparant leur valeur avec ce qui a été enregistré dans notre tableau global et si la distance extraite est supérieure à la meilleure distance connue, elle est simplement ignorée : `if (courant.cout_reel > distances[u]) continue;`
 
 ### Déroulement de l'algorithme
 - Création d'un tableau des distances (où tous les `sommets` sont initialisés à l'infini) et d'un tableau `predecesseurs` initialisé à -1 qui serbira à retracer l'itinéraire.
