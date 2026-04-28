@@ -165,6 +165,23 @@ L'implémentation de ALT se divise en deux phases distinctes :
   - **L'heuristique change :** Au lieu d'utiliser (Haversine), on utilise les tableaux de pré-calculs : pour chaque voisin, on calcule `|dist(voisin, L) - dist(arrivee, L)|` pour tous les landmarks L.
   - L'algorithme garde la **valeur maximale** trouvée parmi tous les landmarks.
 
+## 6. Contraction Hierarchiquees (CH)
+https://jlazarsfeld.github.io/ch.150.project/
+Pour aller encore plus vite, on a implémenté l'algorithme des Contraction Hierarchiques, qui repose sur une hiérarchisation *offline* du graphe. L'énoncé de ce projet suggérait cette méthode, et nous avons trouvé intéressant de l'implémenter car sa mécanique de raccourcis réutilise un concept fondamental vu en cours.
+
+### Phase 1 : Pré-traitement
+Le principe est de supprimer (contracter) les nœuds un par un selon un ordre d'importance (le "rang").
+Quand on veut contracter un nœud V, on regarde ses voisins entrants U et sortants W. L'objectif est de savoir si V est indispensable pour aller de U à W.
+- **Witness Search (Recherche Témoin)** : On lance un mini-Dijkstra entre U et W en s'interdisant formellement de passer par le nœud V.
+- **Création de raccourcis** : Si le chemin trouvé sans V est plus long que le coût direct `(U -> V) + (V -> W)`, cela signifie que la suppression de V fausserait les distances. On est donc obligé de créer une arête virtuelle (un "raccourci") entre U et W.
+- **Le Graphe Upward** : À la fin de la contraction, le graphe est filtré pour ne conserver que les arêtes (originales et raccourcis) qui pointent d'un nœud de rang inférieur vers un nœud de rang supérieur.
+
+### Phase 2 : Réelle recherche (Dijkstra Bidirectionnel)
+La recherche du plus court chemin devient extrêmement rapide car elle navigue sur ce graphe "Upward" allégé.
+L'algorithme lance deux recherches simultanées avec deux files de priorité :
+- Une avancée **"Aller"** (Forward) depuis le nœud de départ, qui monte le long des rangs supérieurs.
+- Une avancée **"Retour"** (Backward) depuis la destination qui, contrairement à l'intuition, "monte" elle aussi le long du graphe Upward.
+- **Condition d'arrêt** : L'algorithme surveille les intersections des deux recherches. Dès que les distances minimales dans les deux tas dépassent le meilleur chemin trouvé lors d'un croisement, on garantit l'optimalité et la boucle s'arrête.
 
 
 
@@ -216,9 +233,6 @@ SDA : Comment encoder graphes
 —— Choisir types de graphes -> par maps ou autre (Ou générer nous-mêmes (avantage : mieux contrôler / cas interessant))
 
 Matrice d’adjacence, liste chaînée -> coder le graphe en matrice de liste d’adjacence
-Implémenter dijkstra et A*
-Réfléchir à des moyens d’optimiser les opérations
-
 Avoir structure efficace sur les graphes (on veut pas changer la carte, on veut que ce soit compact)
 Difficulté : comment accéder aux voisins etc
 

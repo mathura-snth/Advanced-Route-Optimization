@@ -6,10 +6,10 @@
 #include <float.h>
 #include <time.h>
 
-// 1) Prétraitement : CONTRACTION ("Witness Search" (Recherche Témoin))
+// 1) Prétraitement : Recherche de points pour supprimer un noeud inutile
 // Quand on veut supprimer (contracter) un noeud V, on regarde ses voisins U et W
-// On lance un mini-Dijkstra entre U et W en s'interdisant de passer par V
-// Si ce mini-Dijkstra trouve un chemin plus court que (U->V) + (V->W), alors V servait à rien
+// On lance Dijkstra entre U et W en s'interdisant de passer par V
+// Si ce Dijkstra trouve un chemin plus court que (U->V) + (V->W), alors V servait à rien
 // Sinon obligé de créer un raccourci (nouvelle arête) entre U et W
 static double witness_search(csr_graph_t *graphe, int depart, int arrivee, int noeud_interdit, double limite_poids) {
     tas_binaire_t *tas = tas_create(10000); // Petit tas local suffisant
@@ -25,11 +25,8 @@ static double witness_search(csr_graph_t *graphe, int depart, int arrivee, int n
     while(tas->size > 0) {
         element_tas_t courant = tas_extraire_min(tas);
         int u = courant.sommet;
-        
-        // Lazy deletion
         if(courant.cout_reel > distances[u]) continue;
-        
-        // Early exit intelligent : si distance actuelle dépasse déjà le coût du potentiel raccourci,
+        // STOP : si distance actuelle dépasse déjà le coût du potentiel raccourci,
         // c'est perdu, stop la recherche témoin
         if(courant.cout_reel > limite_poids) break; 
         
@@ -41,7 +38,7 @@ static double witness_search(csr_graph_t *graphe, int depart, int arrivee, int n
         for(int i = graphe->first_edge[u]; i < graphe->first_edge[u+1]; i++) {
             int v = graphe->edges[i].cible;
             double poids = graphe->edges[i].poids;
-            
+
             // IMPORTANT : On interdit de passer par le noeud en cours de contraction
             if(v == noeud_interdit) continue;
             
@@ -63,7 +60,7 @@ ch_graph_t* ch_preprocess(csr_graph_t *graphe) {
     ch->rank = malloc(graphe->nb_noeuds * sizeof(int));
     
     // DÉCISION DE CONCEPTION : L'ordre de contraction
-    // Normalement on trie les noeuds dynamiquement selon leur "Edge Difference"
+    // Normalement on trie les noeuds selon leur Edge Difference
     // nous on utilise juste un ordre naif (0 à N-1) pour prouver que l'algo marche
     for(int i = 0; i < graphe->nb_noeuds; i++) {
         ch->rank[i] = i; 
@@ -138,7 +135,7 @@ void free_ch(ch_graph_t *ch) {
     }
 }
 
-// 2) phase requete : dijkstra bidirectionnel
+// 2) phase de recherche réelle : dijkstra bidirectionnel
 
 resultat_t ch_search(ch_graph_t *ch, int start, int target) {
     struct timespec before, after;
@@ -169,7 +166,7 @@ resultat_t ch_search(ch_graph_t *ch, int start, int target) {
     // La recherche tourne tant qu'une des deux files n'est pas vide
     while (tas_aller->size > 0 || tas_retour->size > 0) {
         
-        // CONDITION D'ARRÊT CH : si les min des deux files dépassent le meilleur chemin trouvé, on stop
+        // CONDITION STOP CH : si les min des deux files dépassent le meilleur chemin trouvé, on stop
         if (tas_aller->size > 0 && tas_aller->data[0].score >= meilleur_chemin &&
             tas_retour->size > 0 && tas_retour->data[0].score >= meilleur_chemin) {
             break;
