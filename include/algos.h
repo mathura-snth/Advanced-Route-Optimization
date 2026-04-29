@@ -23,7 +23,7 @@ typedef struct {
     arete_t *up_edges;
 } ch_graph_t;
 
-ch_graph_t* ch_preprocess(csr_graph_t *graphe);
+ch_graph_t* pretraitement_ch(csr_graph_t *graphe);
 resultat_t ch_search(ch_graph_t *ch, int start, int end);
 void free_ch(ch_graph_t *ch);
 #endif

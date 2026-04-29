@@ -56,7 +56,7 @@ int main() {
     struct timespec ch_before, ch_after;
     clock_gettime(CLOCK_REALTIME, &ch_before);
 
-    ch_graph_t *ch = ch_preprocess(graphe); 
+    ch_graph_t *ch = pretraitement_ch(graphe); 
     
     clock_gettime(CLOCK_REALTIME, &ch_after);
     double temps_precalc_ch = (ch_after.tv_sec - ch_before.tv_sec) + (ch_after.tv_nsec - ch_before.tv_nsec) / 1e9;

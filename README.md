@@ -175,27 +175,25 @@ L'implémentation de ALT se divise en deux phases distinctes :
 ---
 ## 6. Contraction Hierarchies (CH)
 
-Pour aller encore plus vite, on a implémenté l'algorithme des Contraction Hierarchies (CH). Cette méthode repose sur une phase de **pré-traitement préalable** (très lourde en calcul) et une phase de **requête** (ultra-rapide). 
+Pour aller encore plus vite, on a implémenté l'algorithme des Contraction Hierarchies (CH). Cette méthode repose sur une phase de **pré-traitement préalable** (lourde en calcul) et une phase de **requête** (ultra-rapide). 
 
-L'énoncé de ce projet suggérait cette méthode, et on a conçu notre implémentation en nous appuyant sur l'étude sur les CH de John Lazarsfeld (https://jlazarsfeld.github.io/ch.150.project/).
-
-L'idée principale des CH est la création de raccourcis virtuels, tout comme la **compression de chemins** que l'on a vu en cours pour la structure **Union-Find**. 
-Dans Union-Find, lorsqu'une recherche traverse un long chemin vers une racine, on relie directement le noeud à la racine pour "aplatir" l'arbre et accélérer les recherches futures. Les Contraction Hierarchies appliquent le même raisonnement à un réseau routier : on crée des liaisons directes pour contourner les intersections inutiles et accélérer la requête finale.
+L'idée principale des CH est la création de raccourcis virtuels pour "aplatir" le graphe et accélérer les recherches futures, à la manière de la **compression de chemins** vue en cours pour la structure **Union-Find**.
 
 ### Phase 1 : Pré-traitement (Contraction des noeuds)
 Le principe est de supprimer (contracter) les noeuds un par un selon un ordre d'importance (le rang).
-- **ordre de contraction (Node Ordering)** : Selon Lazarsfeld, l'efficacité de l'algorithme dépend d'un tri des noeuds basé sur leur Edge Difference (la différence entre les raccourcis créés et les arêtes supprimées). Dans notre implémentation `ch_preprocess`, on a fait le choix de conception d'utiliser un ordre simple (rangs de $0$ à $N-1$) ce qui n'est pas ce qu'il y a de plus optimal. Il existe en effet encore d'autres choix d'ordre, avec là encore la possibilité d'une stratégie paresseuse un peu trop poussée pour notre niveau.
+
+- **ordre de contraction (Node Ordering)** : L'efficacité de l'algorithme repose sur un tri intelligent des noeuds. Nous avons implémenté l'heuristique de l'**Edge Difference** : la priorité de contraction d'un noeud est égale à la différence entre le nombre de raccourcis virtuels ajoutés et le nombre d'arêtes originales supprimées lors de sa suppression ($ED(v) = |Shortcuts| - |OriginalEdges|$).
+- **Stratégie de Mise à jour Paresseuse (Lazy Update)** : Comme la contraction d'un noeud modifie l'Edge Difference de ses voisins, nous utilisons une file de priorité pour maintenir l'ordre. Plutôt que de tout recalculer (coûteux), nous employons une stratégie paresseuse : à l'extraction du tas, nous recalculons l'ED du noeud. S'il reste le meilleur candidat, il est contracté ; sinon, il est réinséré avec sa nouvelle priorité.
 - **Recherche Témoin** : pour contracter un noeud $V$, il faut chercher un "chemin témoin" entre ses voisins $U$ et $W$ sans jamais utiliser $V$. C'est ce que fait notre fonction `witness_search` via `if(v == noeud_interdit) continue;`.
 - **Création de Raccourcis** : si le chemin témoin est plus long, un raccourci doit être ajouté d'où la condition `if(cout_via_v < cout_sans_v)`. Si elle est vérifiée on créé une arête virtuelle directe (notre compression de chemin).
-- **Le Graphe Ascendant** : à la fin de la contraction, le graphe est filtré. Comme l'indique l'étude de Lazarsfeld, on ne garde en mémoire que les arêtes (originales et raccourcis) qui pointent d'un noeud de rang inférieur vers un noeud de rang supérieur (`if(ch->rank[u] < ch->rank[v])`).
+- **Le Graphe Ascendant** : à la fin de la contraction, le graphe est filtré. On ne garde en mémoire que les arêtes (originales et raccourcis) qui pointent d'un noeud de rang inférieur vers un noeud de rang supérieur (`if(ch->rank[u] < ch->rank[v])`).
 
 ### Phase 2 : Réelle recherche - Dijkstra Bidirectionnel
 C'est comme une recherche bidirectionnelle restreinte. Elle devient très rapide car elle se base uniquement sur le **graphe ascendant** qui est allégé.
 L'algorithme lance deux recherches simultanées avec deux files de priorité :
 - Un tas **"Aller"** depuis le noeud de départ, qui monte le long des rangs supérieurs.
 - Un tas **"Retour"** depuis la destination qui monte elle aussi le long du graphe ascendant.
-- **Condition d'arrêt** : On fait attention aux intersections des deux recherches et dès que les distances minimales au sommet des deux tas dépassent le meilleur chemin déjà trouvé lors d'un croisement, l'optimalité est garantie. Le code force alors l'arrêt précoce de la boucle, évitant d'explorer tout le reste du réseau.
-
+- **Condition d'arrêt** : On fait attention aux intersections des deux recherches et dès que les distances minimales au sommet des deux tas dépassent le meilleur chemin déjà trouvé lors d'un croisement, l'optimalité est garantie. Le code force alors l'arrêt précoce de la boucle.
 
 
 
