@@ -16,6 +16,7 @@ OBJ = $(BUILD_DIR)/graph.o \
       $(BUILD_DIR)/a_star.o \
       $(BUILD_DIR)/alt.o \
       $(BUILD_DIR)/ch.o \
+      $(BUILD_DIR)/analyzer.o \
       $(BUILD_DIR)/main.o
 
 EXEC = $(BIN_DIR)/moteur_gps

@@ -221,6 +221,9 @@ Les deux recherches utilisent le graphe ascendant, possible car les raccourcis s
 
 - **condition d'arrêt** : on s'arrête dès que les distances minimales présentes au sommet des deux tas dépassent la meilleure solution déjà trouvée. À ce moment là aucun meilleur chemin ne peut encore être découvert.
 
+make
+./bin/moteur_gps
+python3 scripts/analyze_results.py
 
 # NOTES EN PLUS PENDANT LES TPs :
 
