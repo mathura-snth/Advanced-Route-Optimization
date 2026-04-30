@@ -175,64 +175,54 @@ L'implémentation de ALT se divise en deux phases distinctes :
 ---
 ## 6. Contraction Hierarchies (CH)
 
-Pour aller encore plus vite, on a implémenté l'algorithme des Contraction Hierarchies (CH). Cette méthode repose sur une phase de **pré-traitement préalable** (lourde en calcul) et une phase de **requête** (ultra-rapide). 
+Pour aller encore plus vite, on a implémenté l'algorithme des Contraction Hierarchies (CH). Cette méthode repose sur une phase de **pré-traitement préalable** (lourde en calcul) et une phase de **requête** (rapide). 
 
-L'idée principale des CH est la création de raccourcis virtuels pour "aplatir" le graphe et accélérer les recherches futures, à la manière de la **compression de chemins** vue en cours pour la structure **Union-Find**.
+On peut faire un parallèle avec la **compression de chemins** vue en cours dans la structure **Union-Find **: dans les deux cas, on accepte de modifier préalablement une structure afin de rendre les opérations futures beaucoup plus rapides.
+Mais contrairement à Union-Find qui restructure des arbres, les Contraction Hierarchies enrichissent le graphe en ajoutant des raccourcis virtuels.
 
 ### Phase 1 : Pré-traitement (Contraction des noeuds)
-Le principe est de supprimer (contracter) les noeuds un par un selon un ordre d'importance (le rang).
+Le pré-traitement consiste à contracter les sommets un à un selon un ordre d’importance.
 
-- **ordre de contraction (Node Ordering)** : L'efficacité de l'algorithme repose sur un tri intelligent des noeuds. Nous avons implémenté l'heuristique de l'**Edge Difference** : la priorité de contraction d'un noeud est égale à la différence entre le nombre de raccourcis virtuels ajoutés et le nombre d'arêtes originales supprimées lors de sa suppression ($ED(v) = |Shortcuts| - |OriginalEdges|$).
-- **Stratégie de Mise à jour Paresseuse (Lazy Update)** : Comme la contraction d'un noeud modifie l'Edge Difference de ses voisins, nous utilisons une file de priorité pour maintenir l'ordre. Plutôt que de tout recalculer (coûteux), nous employons une stratégie paresseuse : à l'extraction du tas, nous recalculons l'ED du noeud. S'il reste le meilleur candidat, il est contracté ; sinon, il est réinséré avec sa nouvelle priorité.
-- **Recherche Témoin** : pour contracter un noeud $V$, il faut chercher un "chemin témoin" entre ses voisins $U$ et $W$ sans jamais utiliser $V$. C'est ce que fait notre fonction `witness_search` via `if(v == noeud_interdit) continue;`.
-- **Création de Raccourcis** : si le chemin témoin est plus long, un raccourci doit être ajouté d'où la condition `if(cout_via_v < cout_sans_v)`. Si elle est vérifiée on créé une arête virtuelle directe (notre compression de chemin).
-- **Le Graphe Ascendant** : à la fin de la contraction, le graphe est filtré. On ne garde en mémoire que les arêtes (originales et raccourcis) qui pointent d'un noeud de rang inférieur vers un noeud de rang supérieur (`if(ch->rank[u] < ch->rank[v])`).
+Chaque sommet reçoit un rang, correspondant à son ordre de contraction : plus son rang est élevé, plus il est considéré comme important dans la hiérarchie.
 
-### Phase 2 : Réelle recherche - Dijkstra Bidirectionnel
-C'est comme une recherche bidirectionnelle restreinte. Elle devient très rapide car elle se base uniquement sur le **graphe ascendant** qui est allégé.
-L'algorithme lance deux recherches simultanées avec deux files de priorité :
-- Un tas **"Aller"** depuis le noeud de départ, qui monte le long des rangs supérieurs.
-- Un tas **"Retour"** depuis la destination qui monte elle aussi le long du graphe ascendant.
-- **Condition d'arrêt** : On fait attention aux intersections des deux recherches et dès que les distances minimales au sommet des deux tas dépassent le meilleur chemin déjà trouvé lors d'un croisement, l'optimalité est garantie. Le code force alors l'arrêt précoce de la boucle.
+- **choix de l’ordre de contraction, Edge Difference** : l’efficacité de CH dépend fortement de l’ordre choisi. Nous utilisons l’heuristique abordée par John Lazarsfeld de l’Edge Difference, définie par : ED(v)= ∣raccourcis(v)∣ − ∣arêtes supprimées(v)|
 
+Cette métrique favorise les sommets dont la contraction simplifie fortement le graphe tout en ajoutant peu de nouveaux raccourcis.
 
+- **stratégie de mise à jour paresseuse, Lazy Update** : Comme la contraction d'un noeud modifie l'Edge Difference de ses voisins (donc les scores des autres sommets deviennent potentiellement obsolètes), nous utilisons une file de priorité pour maintenir l'ordre. Plutôt que de tout recalculer (coûteux), nous employons une stratégie paresseuse :
+      - le sommet extrait du tas voit son score recalculé
+      - si ce score reste meilleur ou équivalent au prochain meilleur candidat valide, il est contracté
+      - sinon il est réinséré avec sa nouvelle priorité.
+Ce qui permet de conserver un bon ordre de contraction sans recalcul global.
 
+- **contraction d’un sommet** : Lorsqu’un sommet v est contracté, il disparaît temporairement du graphe. Le problème est qu’un plus court chemin pouvait passer par : u→v→w. Donc supprimer v risquerait de détruire ce chemin optimal. Pour préserver toutes les distances, il faut examiner chaque paire de voisins (u,w) du sommet contracté v.
 
+- **recherche témoin (Witness Search)** : Pour savoir si ce raccourci est réellement nécessaire, on lance un Dijkstra local entre u et w. Cette recherche :
+      - interdit le passage par le sommet contracté v
+      - s’effectue que sur les sommets encore non contractés
+      - s’arrête dès que la meilleure distance extraite dépasse le coût du raccourci candidat pour éviter d’effectuer une exploration complète inutile.
 
-
-
-
-
-
-
-
+Deux cas sont possibles :
+      - Un chemin alternatif existe avec un coût inférieur ou égal → aucun raccourci ajouté
+      - Aucun chemin alternatif assez court n’existe → raccourci virtuel inséré
 
 
----------- A FAIRE
-dij :
+- **optimisation mémoire** :  Comme les recherches témoins sont nombreuses, pour éviter de réinitialiser entièrement le tableau des distances après chaque Dijkstra local, on remet à l’infini que les sommets visités pendant la recherche (d'où stockage dans visite). Ce qui réduit le coût du pré-traitement.
 
-*** tester ? Au lieu d'utiliser des pointeurs et des allocations dynamiques pour chaque noeud de l'arbre (ce qui causerait des défauts de localité spatiale et ralentirait l'exécution), 
-****
+- **construction du graphe ascendant** : une fois tous les sommets contractés, le graphe est filtré donc on garde que les arêtes allant d’un sommet de rang inférieur vers un sommet de rang supérieur : `if (rank[u] < rank[v])`` On obtient ainsi le graphe **ascendant**. Cette orientation oblige les recherches futures à remonter dans la hiérarchie, donc réduit le nombre de sommets explorés.
 
-*** tester decrease key ?
-***
+### Phase 2 : Réelle recherche - Dijkstra Bidirectionnel (hiérarchique)
+La recherche du plus court chemin s’effectue par un Dijkstra bidirectionnel sur le graphe ascendant : deux explorations sont lancées en même temps :
+- Un tas **"Aller"** depuis le noeud de départ
+- Un tas **"Retour"** depuis la destination
+Les deux recherches utilisent le graphe ascendant, possible car les raccourcis sont bidirectionnels (pendant la contraction).
 
-*** tester Mais chercher un élément au milieu d'un tas binaire prend un temps linéaire O(V), à moins de maintenir un lourd tableau de pointeurs inversés (pos[]) qui consomme de la mémoire et dégrade les performances du cache.
-***
+- **détection de rencontre** : quand un sommet a été atteint par les deux explorations, on obtient un chemin candidat : dist_aller (u) + dist_retour(u). Le plus petit de ces candidats est la meilleure solution courante.
 
+- **condition d'arrêt** : on s'arrête dès que les distances minimales présentes au sommet des deux tas dépassent la meilleure solution déjà trouvée. À ce moment là aucun meilleur chemin ne peut encore être découvert.
 
-a_star :
-
-***Ainsi on a réellement un gain d'efficacité : dans nos tests sur le réseau Île-de-France, A* réduit énormément le nombre d'extractions (noeuds visités) par rapport à Dijkstra. En ignorant les routes qui s'éloignent de la destination, le temps de calcul est divisé par un facteur significatif (quel facteur) tout en garantissant le même résultat optimal
-facteur 3-5 à tester
-***
-
------------
---------------------------------------------
 
 # NOTES EN PLUS PENDANT LES TPs :
-SDA : Comment encoder graphes
-—— Choisir types de graphes -> par maps ou autre (Ou générer nous-mêmes (avantage : mieux contrôler / cas interessant))
 
 Matrice d’adjacence, liste chaînée -> coder le graphe en matrice de liste d’adjacence
 Avoir structure efficace sur les graphes (on veut pas changer la carte, on veut que ce soit compact)
