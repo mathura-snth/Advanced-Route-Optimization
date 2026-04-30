@@ -8,5 +8,6 @@ bin/
 *.exe
 *.o
 *.out
+*.plot
 
 .DS_Store
