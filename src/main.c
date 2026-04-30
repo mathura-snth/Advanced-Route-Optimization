@@ -34,7 +34,7 @@ int main() {
     int *landmarks = malloc(nb_landmarks * sizeof(int));
     srand(42); // On fixe la seed => reproductibilité
     
-    printf("[ALT] Sélection de %d landmarks et calcul des distances...\n", nb_landmarks);
+    printf("ALT : sélection de %d landmarks et calcul des distances\n", nb_landmarks);
     struct timespec pre_before, pre_after;
     clock_gettime(CLOCK_REALTIME, &pre_before);
     
@@ -48,11 +48,11 @@ int main() {
     
     clock_gettime(CLOCK_REALTIME, &pre_after);
     double temps_precalc_alt = (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1e9;
-    printf("-> Pre-calculs ALT termines en %.2f secondes.\n", temps_precalc_alt);
+    printf("Pre-calculs ALT terminés en %.2f secondes.\n", temps_precalc_alt);
 
     // précalcul ch
-    printf("\n[CH] Lancement du pré-traitement Contraction Hierarchies...\n");
-    printf("     (ATTENTION : Cela peut prendre plusieurs minutes !)\n");
+    printf("\nCH : lancement du pré-traitement Contraction Hierarchies...\n");
+    printf("     (ATTENTION : Ça peut prendre plusieurs minutes)\n");
     struct timespec ch_before, ch_after;
     clock_gettime(CLOCK_REALTIME, &ch_before);
 
@@ -60,7 +60,7 @@ int main() {
     
     clock_gettime(CLOCK_REALTIME, &ch_after);
     double temps_precalc_ch = (ch_after.tv_sec - ch_before.tv_sec) + (ch_after.tv_nsec - ch_before.tv_nsec) / 1e9;
-    printf("-> Pre-calculs CH termines en %.2f secondes.\n", temps_precalc_ch);
+    printf("Pre-calculs CH termines en %.2f secondes.\n", temps_precalc_ch);
 
     int depart = 15;
     int arrivee = 1466593; 
