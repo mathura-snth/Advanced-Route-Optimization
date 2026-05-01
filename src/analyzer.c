@@ -25,7 +25,6 @@ void analyzer_append(analyzer_t * a, double x){
   if( a!=NULL ){
     if( a->size >= (a->capacity * 3)/4 ){
       a->capacity *= 2; 
-      // CORRECTION : On ne multiplie plus par 2 ici, a->capacity a déjà été doublée
       a->cost = (double *) realloc(a->cost, sizeof(double) * a->capacity);
       a->cumulative_cost = (long double *) realloc(a->cumulative_cost, sizeof(long double) * a->capacity);
     }
@@ -57,7 +56,6 @@ long double get_variance(analyzer_t * a){
   if(a->size){
     mean = get_average_cost(a);
     mean_square = mean * mean;
-    // CORRECTION : Il manquait la division par la taille (N)
     return (a->cumulative_square / a->size) - mean_square; 
   }
   return -1;
@@ -69,7 +67,6 @@ long double get_standard_deviation(analyzer_t * a){
   return -1;
 }
 
-// CORRECTIONS ICI : const char* et size_t
 void save_values(analyzer_t * a, const char * path){
   FILE * f;
   size_t i;
@@ -83,7 +80,6 @@ void save_values(analyzer_t * a, const char * path){
   }
 }
 
-// CORRECTIONS ICI : size_t
 void plot_values(analyzer_t * a){
   size_t i;
   for (i = 0; i < a->size; ++i){

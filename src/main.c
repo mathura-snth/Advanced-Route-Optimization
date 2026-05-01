@@ -12,22 +12,36 @@
 #define SEED_EVAL 42
 
 void run_evaluation(csr_graph_t *graphe, coordonnees_t *coords, ch_graph_t *ch, double **distances_landmarks, int nb_landmarks) {
-    printf("\n--- DEBUT DE LA CAMPAGNE D'EVALUATION ---\n");
-    printf("Recherche de %d trajets valides en cours...\n", NB_REQUETES);
+    printf("\n Début de l'évaluation\n");
+    printf("Recherche de %d trajets valides\n", NB_REQUETES);
 
+    // analyse du temps
     analyzer_t *t_dijkstra = analyzer_create();
     analyzer_t *t_astar    = analyzer_create();
     analyzer_t *t_alt      = analyzer_create();
     analyzer_t *t_ch       = analyzer_create();
 
+    // analyse des extractions
     analyzer_t *e_dijkstra = analyzer_create();
     analyzer_t *e_astar    = analyzer_create();
     analyzer_t *e_alt      = analyzer_create();
     analyzer_t *e_ch       = analyzer_create();
 
+    // analyse des mémoires
+    analyzer_t *m_dijkstra = analyzer_create();
+    analyzer_t *m_astar    = analyzer_create();
+    analyzer_t *m_alt      = analyzer_create();
+    analyzer_t *m_ch       = analyzer_create();
+
     srand(SEED_EVAL);
     int success_count = 0;
     int tentatives = 0;
+
+    // Dijkstra, A* et ALT utilisent: tableau dist (double) + tableau pred (int) + tas (element_tas_t)
+    double mem_classique = (graphe->nb_noeuds * (sizeof(double) + sizeof(int))) + (graphe->nb_aretes * sizeof(element_tas_t));
+    
+    // CH utilise: 2 tableaux dist (aller/retour) + 2 tas basés sur le graphe ascendant
+    double mem_contraction = (2 * ch->num_nodes * sizeof(double)) + (2 * (ch->up_first_edge[ch->num_nodes] + 1) * sizeof(element_tas_t));
 
     while (success_count < NB_REQUETES) {
         tentatives++;
@@ -51,22 +65,25 @@ void run_evaluation(csr_graph_t *graphe, coordonnees_t *coords, ch_graph_t *ch, 
         if (fabs(res_a.distance - res_d.distance) > epsilon || 
             fabs(res_c.distance - res_d.distance) > epsilon) {
             // On signale l'erreur mais on l'accepte pour ne pas bloquer les statistiques de temps
-            fprintf(stderr, "[WARNING] Divergence mineure detectee: Dij=%.2f, A*=%.2f, CH=%.2f\n", 
-                    res_d.distance, res_a.distance, res_c.distance);
+            fprintf(stderr, "Divergence mineure : Dij=%.2f, A*=%.2f, CH=%.2f\n", res_d.distance, res_a.distance, res_c.distance);
         }
 
-        // On enregistre les données en toute sécurité
+        // On enregistre les données
         analyzer_append(t_dijkstra, res_d.temps_sec);
         analyzer_append(e_dijkstra, (double)res_d.extractions);
+        analyzer_append(m_dijkstra, mem_classique);
 
         analyzer_append(t_astar, res_a.temps_sec);
         analyzer_append(e_astar, (double)res_a.extractions);
+        analyzer_append(m_astar, mem_classique);
 
         analyzer_append(t_alt, res_l.temps_sec);
         analyzer_append(e_alt, (double)res_l.extractions);
+        analyzer_append(m_alt, mem_classique);
 
         analyzer_append(t_ch, res_c.temps_sec);
         analyzer_append(e_ch, (double)res_c.extractions);
+        analyzer_append(m_ch, mem_contraction);
 
         success_count++;
 
@@ -75,23 +92,33 @@ void run_evaluation(csr_graph_t *graphe, coordonnees_t *coords, ch_graph_t *ch, 
         }
     }
 
-    // Sauvegarde en reprenant la logique du TP d'origine
+    // Sauvegarde (voir TP1)
     save_values(t_dijkstra, "results/time_dijkstra.plot");
     save_values(t_astar,    "results/time_astar.plot");
     save_values(t_alt,      "results/time_alt.plot");
     save_values(t_ch,       "results/time_ch.plot");
+    save_values(m_dijkstra, "results/memory_dijkstra.plot");
+    save_values(m_ch,       "results/memory_ch.plot");
 
     printf("\n--- BILAN SUR %d REQUETES REUSSIES ---\n", success_count);
     printf("Algo      | Temps Moyen (ms) | Extractions Moy. | Ecart-type Temps\n");
-    printf("Dijkstra  | %12.4Lf | %16.0Lf | %12.4Lf\n", get_average_cost(t_dijkstra)*1000, get_average_cost(e_dijkstra), get_standard_deviation(t_dijkstra)*1000);
-    printf("A*        | %12.4Lf | %16.0Lf | %12.4Lf\n", get_average_cost(t_astar)*1000, get_average_cost(e_astar), get_standard_deviation(t_astar)*1000);
-    printf("ALT       | %12.4Lf | %16.0Lf | %12.4Lf\n", get_average_cost(t_alt)*1000, get_average_cost(e_alt), get_standard_deviation(t_alt)*1000);
-    printf("CH        | %12.4Lf | %16.0Lf | %12.4Lf\n", get_average_cost(t_ch)*1000, get_average_cost(e_ch), get_standard_deviation(t_ch)*1000);
+    printf("Dijkstra  | %12.4Lf | %16.0Lf | %12.4Lf\n", get_average_cost(t_dijkstra)*1000, get_average_cost(e_dijkstra), get_standard_deviation(t_dijkstra)*1000, get_average_cost(m_dijkstra)/1024.0);
+    printf("A*        | %12.4Lf | %16.0Lf | %12.4Lf\n", get_average_cost(t_astar)*1000, get_average_cost(e_astar), get_standard_deviation(t_astar)*1000, get_average_cost(m_astar)/1024.0);
+    printf("ALT       | %12.4Lf | %16.0Lf | %12.4Lf\n", get_average_cost(t_alt)*1000, get_average_cost(e_alt), get_standard_deviation(t_alt)*1000, get_average_cost(m_alt)/1024.0);
+    printf("CH        | %12.4Lf | %16.0Lf | %12.4Lf\n", get_average_cost(t_ch)*1000, get_average_cost(e_ch), get_standard_deviation(t_ch)*1000, get_average_cost(m_ch)/1024.0);
 
-    analyzer_destroy(t_dijkstra); analyzer_destroy(e_dijkstra);
-    analyzer_destroy(t_astar);    analyzer_destroy(e_astar);
-    analyzer_destroy(t_alt);      analyzer_destroy(e_alt);
-    analyzer_destroy(t_ch);       analyzer_destroy(e_ch);
+    analyzer_destroy(t_dijkstra);
+    analyzer_destroy(e_dijkstra);
+    analyzer_destroy(m_dijkstra);
+    analyzer_destroy(t_astar);
+    analyzer_destroy(e_astar);
+    analyzer_destroy(m_astar);
+    analyzer_destroy(t_alt);
+    analyzer_destroy(e_alt);
+    analyzer_destroy(m_alt);
+    analyzer_destroy(t_ch);
+    analyzer_destroy(e_ch);
+    analyzer_destroy(m_ch);
 }
 
 int main() {
