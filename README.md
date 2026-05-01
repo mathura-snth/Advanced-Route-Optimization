@@ -185,7 +185,7 @@ Le pré-traitement consiste à contracter les sommets un à un selon un ordre d�
 
 Chaque sommet reçoit un rang, correspondant à son ordre de contraction : plus son rang est élevé, plus il est considéré comme important dans la hiérarchie.
 
-- **choix de l’ordre de contraction, Edge Difference** : l’efficacité de CH dépend fortement de l’ordre choisi. Nous utilisons l’heuristique abordée par John Lazarsfeld de l’Edge Difference, définie par : ED(v)= ∣raccourcis(v)∣ − ∣arêtes supprimées(v)|
+- **choix de l’ordre de contraction, Edge Difference** : l’efficacité de CH dépend fortement de l’ordre choisi. Nous utilisons l’heuristique abordée par John Lazarsfeld (https://jlazarsfeld.github.io/ch.150.project) de l’Edge Difference, définie par : ED(v)= ∣raccourcis(v)∣ − ∣arêtes supprimées(v)|
 
 Cette métrique favorise les sommets dont la contraction simplifie fortement le graphe tout en ajoutant peu de nouveaux raccourcis.
 
@@ -255,3 +255,28 @@ Avant de lancer le projet il faut avoir :
 2. **Exécution** (le moteur) : lancer `./bin/moteur_gps`.
 3. **Génération des statistiques** (python) : lancer `python3 scripts/analyze_results.py` pour calculer et afficher dans le terminal les tableaux récapitulatifs complets.
 4. **Génération des graphiques visuels** (Gnuplot) : lancer `gnuplot scripts/generate_graphs.p` pour transformer les données en courbes **logarithmiques** (Temps de réponse, Nœuds explorés, Mémoire allouée). Les images .png apparaîtront dans le dossier results/.
+
+### Arborescence du Projet
+Afin de maintenir un code propre et modulaire, le dépôt Git a été organisé de la manière suivante :
+```text
+SDA_Projet_Maps/
+├── doc/           # Documentation et rendu final
+│   ├── Rapport - Route Planning.pdf
+│   └── enonce_projet_sda.pdf
+│
+├── include/       # Fichiers d'en-tête (.h)
+│   └── algos.h, analyzer.h, graph.h, tas.h
+│
+├── results/       # Graphiques de performances générés
+│   └── comparison_graph_gnuplot.png, extractions_graph
+│
+├── scripts/       # Scripts Python d'analyse et de tracé
+│   └── analyze_results.py, extract.py, generate_graphs.py
+│
+├── src/           # Code source C (.c)
+│   └── a_star.c, alt.c, ch.c, dijkstra.c, graph.c, main.c, tas.c, analyzer.c
+│
+├── .gitignore     # Exclusion des fichiers lourds ou compilés (ex: data/, build/)
+├── Makefile       # Règles de compilation automatisée
+└── README.md      # Ce fichier
+```
