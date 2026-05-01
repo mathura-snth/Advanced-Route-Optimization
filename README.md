@@ -242,3 +242,16 @@ Toujours avec le TP1, on a séparé le calcul en C de la visualisation de la don
 Les données brutes sont exportées sous forme de fichiers `.plot` puis exploitées via :
 - **Gnuplot :** Un script `.p` permet de générer les courbes, reproduisant le comportement du script `launch_analysis.sh`. On a ajouté une échelle logarithmique pour visualiser l'écart de performance énorme entre Dijkstra et Contraction Hierarchies.
 - **Python / Pandas :** le script Python pour calculer des statistiques, notamment le **95e percentile (P95)**.
+
+---
+## 8. Compilation et Exécution
+
+Avant de lancer le projet il faut avoir :
+  - **Python 3 :** avec les bibliothèques (`pandas` et `numpy`).
+  - **Gnuplot :** Pour la génération des graphiques `brew install gnuplot`.
+
+
+1. **Compilation** : lancer `make` à la racine du projet pour compiler les sources du dossier `src/` et créer l'exécutable
+2. **Exécution** (le moteur) : lancer `./bin/moteur_gps`.
+3. **Génération des statistiques** (python) : lancer `python3 scripts/analyze_results.py` pour calculer et afficher dans le terminal les tableaux récapitulatifs complets.
+4. **Génération des graphiques visuels** (Gnuplot) : lancer `gnuplot scripts/generate_graphs.p` pour transformer les données en courbes **logarithmiques** (Temps de réponse, Nœuds explorés, Mémoire allouée). Les images .png apparaîtront dans le dossier results/.
