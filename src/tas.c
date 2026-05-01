@@ -42,7 +42,7 @@ void tas_ajout(tas_binaire_t * tas, int sommet, double score, double cout_reel) 
 }
 
 element_tas_t tas_extraire_min(tas_binaire_t * tas) {
-    if (tas->size <= 0) return (element_tas_t){-1, -1.0}; // structure d'erreur si arbre vide
+    if (tas->size <= 0) return (element_tas_t){-1, -1.0, -1.0}; // structure d'erreur si arbre vide
     
     element_tas_t racine = tas->data[0]; // comme min à la racine on peut le sauvegarder
     tas->size--; // on baisse la taille du tas

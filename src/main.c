@@ -106,12 +106,12 @@ void run_evaluation(csr_graph_t *graphe, coordonnees_t *coords, ch_graph_t *ch, 
     save_values(e_ch,       "results/extract_ch.plot");
 
     printf("\n--- BILAN SUR %d REQUETES REUSSIES ---\n", success_count);
-    printf("Algo      | Temps Moyen (ms) | Extractions Moy. | Ecart-type Temps\n");
-    printf("Dijkstra  | %12.4Lf | %16.0Lf | %12.4Lf\n", get_average_cost(t_dijkstra)*1000, get_average_cost(e_dijkstra), get_standard_deviation(t_dijkstra)*1000, get_average_cost(m_dijkstra)/1024.0);
-    printf("A*        | %12.4Lf | %16.0Lf | %12.4Lf\n", get_average_cost(t_astar)*1000, get_average_cost(e_astar), get_standard_deviation(t_astar)*1000, get_average_cost(m_astar)/1024.0);
-    printf("ALT       | %12.4Lf | %16.0Lf | %12.4Lf\n", get_average_cost(t_alt)*1000, get_average_cost(e_alt), get_standard_deviation(t_alt)*1000, get_average_cost(m_alt)/1024.0);
-    printf("CH        | %12.4Lf | %16.0Lf | %12.4Lf\n", get_average_cost(t_ch)*1000, get_average_cost(e_ch), get_standard_deviation(t_ch)*1000, get_average_cost(m_ch)/1024.0);
-
+    printf("Algo      | Temps Moyen (ms) | Extractions Moy. | Ecart-type Temps | RAM (Mo)\n");
+    printf("Dijkstra  | %16.4Lf | %16.0Lf | %16.4Lf | %8.2Lf\n", get_average_cost(t_dijkstra)*1000, get_average_cost(e_dijkstra), get_standard_deviation(t_dijkstra)*1000, get_average_cost(m_dijkstra)/1024.0);
+    printf("A*        | %16.4Lf | %16.0Lf | %16.4Lf | %8.2Lf\n", get_average_cost(t_astar)*1000, get_average_cost(e_astar), get_standard_deviation(t_astar)*1000, get_average_cost(m_astar)/1024.0);
+    printf("ALT       | %16.4Lf | %16.0Lf | %16.4Lf | %8.2Lf\n", get_average_cost(t_alt)*1000, get_average_cost(e_alt), get_standard_deviation(t_alt)*1000, get_average_cost(m_alt)/1024.0);
+    printf("CH        | %16.4Lf | %16.0Lf | %16.4Lf | %8.2Lf\n", get_average_cost(t_ch)*1000, get_average_cost(e_ch), get_standard_deviation(t_ch)*1000, get_average_cost(m_ch)/1024.0);
+    
     analyzer_destroy(t_dijkstra);
     analyzer_destroy(e_dijkstra);
     analyzer_destroy(m_dijkstra);
