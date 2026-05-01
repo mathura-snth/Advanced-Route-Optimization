@@ -61,8 +61,6 @@ for path, name in algos_memory:
     s, v = analyze_plot(path, name, is_memory=True)
     if s is not None:
         mem_stats.append(s)
-        # La mémoire est constante pour une carte donnée, pas besoin de moyenne mobile
-        plt.plot(v.index, v, label=f"{name}")
 
 if mem_stats:
     df_mem = pd.DataFrame(mem_stats)

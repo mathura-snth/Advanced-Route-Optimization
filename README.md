@@ -225,19 +225,20 @@ make
 ./bin/moteur_gps
 python3 scripts/analyze_results.py
 
-# NOTES EN PLUS PENDANT LES TPs :
+---
+## 7. Évaluation - TP1 SDA
 
-Matrice d’adjacence, liste chaînée -> coder le graphe en matrice de liste d’adjacence
-Avoir structure efficace sur les graphes (on veut pas changer la carte, on veut que ce soit compact)
-Difficulté : comment accéder aux voisins etc
+Pour valider l'efficacité de nos algorithmes (Dijkstra, A*, ALT, Contraction Hierarchies), on s'est inspiré de la méthodologie vue en cours lors du **TP1 de SDA**. On a réutilisé la structure `analyzer_t`, qu'on a adapté pour supporter l'échelle des graphes routiers.
 
-Grilles perturbées
+Pour chaque requête, notre moteur mesure trois métriques critiques :
 
-Prendre tous les sommets -> garder les intersection (points valence de 2)
-Garder les données comme ça et faire graphes etc pcq peut etre optimisation possible via ça
+- **Le temps d'exécution brut (ms) :** avec `clock_gettime`, il reflète la vitesse réelle de l'algorithme sur la machine.
+- **L'espace de recherche (Nœuds visités) :** on calcule le nombre d'extractions depuis le tas binair pour montrer l'efficacité de nos heuristiques (A*, ALT) et du filtrage de CH.
+- **L'empreinte mémoire dynamique (RAM) :** on s'est inspiré de l'analyse de la mémoire gaspillée du TP1, on quantifie la mémoire en octets allouée par chaque algorithme pour une requête (taille des tableaux de distances, taille maximale du tas binaire).
 
+Le fichier `analyzer.c` du TP1 a été adapté pour notre échantillon de 1000 trajets aléatoires : on a ajouté `fclose` pour fermer correctement et éviter les fuites de mémoires et on a ajouté une boucle `while` pour laisser passer des divergences minimes.
 
-Trier les points
-En fonction du nombre de routes qui passent par ces points, si une seule route par ces points alors pas d’intersection => on l’enlève mais garder les données des points retirés car sinon fausse la distance 
-
-En gros : on stocke la distance entre les points reliant A et B et on les cumule pour avoir distance A-B par ces points là mais on supprime ces points pour dire que c’est pas A-g-g-h-j-j-k-i-u-y-B mais A-B
+Toujours avec le TP1, on a séparé le calcul en C de la visualisation de la données.
+Les données brutes sont exportées sous forme de fichiers `.plot` puis exploitées via :
+- **Gnuplot :** Un script `.p` permet de générer les courbes, reproduisant le comportement du script `launch_analysis.sh`. On a ajouté une échelle logarithmique pour visualiser l'écart de performance énorme entre Dijkstra et Contraction Hierarchies.
+- **Python / Pandas :** le script Python pour calculer des statistiques, notamment le **95e percentile (P95)**.
