@@ -22,11 +22,7 @@ resultat_t dijkstra(csr_graph_t *graphe, int depart, int arrivee) {
     clockid_t clk_id = CLOCK_REALTIME;
     clock_gettime(clk_id, &before);
 
-
-    // DÉCISION DE CONCEPTION CRITIQUE : PLUTÔT QUE DE MODIFIER LES DISTANCES DANS LE TAS (CE QUI EST LENT ET COMPLEXE), 
-    // ON PRÉFÈRE L'APPROCHE "LAZY DELETION" : ON AJOUTERA DES DOUBLONS.
-    // LE PIRE CAS POSSIBLE EST QUE CHAQUE ARÊTE DU GRAPHE GÉNIÈRE UNE INSERTION. 
-    // LA CAPACITÉ DU TAS EST DONC FIXÉE À nb_aretes POUR ÉVITER TOUT RISQUE DE DÉBORDEMENT.
+    //choix stratégie paresseuse
     tas_binaire_t * tas = tas_create(graphe->nb_aretes);
 
     distances[depart] = 0.0;
@@ -41,11 +37,7 @@ resultat_t dijkstra(csr_graph_t *graphe, int depart, int arrivee) {
         element_tas_t courant = tas_extraire_min(tas); // on extrait le noeud le plus proche du point de départ
         int u = courant.sommet;
 
-
-        // C'EST ICI QU'OPÈRE LA MAGIE DE LA "LAZY DELETION" :
-        // PUISQU'ON INSÈRE DES DOUBLONS PLUTÔT QUE DE METTRE À JOUR LE TAS, 
-        // ON PEUT DÉPILER UN SOMMET DONT LA DISTANCE EST OBSOLÈTE (PLUS GRANDE QUE LA MEILLEURE TROUVÉE ENTRE TEMPS).
-        // SI C'EST LE CAS, ON L'IGNORE ET ON PASSE AU SUIVANT DIRECTEMENT. ÇA ÉVITE DES CALCULS INUTILES.
+        // on insère des doublons au lieu de supp la distance obsolète
         if (courant.cout_reel > distances[u]) continue; 
         
         // noeud validé et exploré => incrémentation du compteur
