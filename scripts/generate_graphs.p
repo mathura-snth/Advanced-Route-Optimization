@@ -24,11 +24,25 @@ set output "results/memory_graph_gnuplot.png"
 set title "Comparatif de la consommation RAM"
 set ylabel "Mémoire allouée par requête (Octets)"
 
-# On enlève l'échelle logarithmique et on force le 0 en bas
 unset logscale y
 set format y "%g"
 set yrange [0:*]
 
-# Ici pas besoin de lisser, la mémoire est souvent constante
 plot "results/memory_dijkstra.plot" using 1:2 with lines title "Dijkstra / A* / ALT" linewidth 2 linecolor rgb "blue", \
      "results/memory_ch.plot" using 1:2 with lines title "Contraction Hierarchies" linewidth 2 linecolor rgb "red"
+
+
+# 3. GRAPHIQUE DES NOEUDS EXPLORÉS (EXTRACTIONS)
+set output "results/extractions_graph_gnuplot.png"
+set title "Espace de recherche : Nœuds extraits du tas"
+set ylabel "Nombre de nœuds explorés"
+
+# On remet l'échelle logarithmique car la différence est énorme
+set logscale y 10
+set format y "10^{%L}"
+set yrange [*:*] # Laisse Gnuplot calculer la meilleure plage
+
+plot "results/extract_dijkstra.plot" using 1:2 smooth bezier title "Dijkstra" linewidth 2 linecolor rgb "blue", \
+     "results/extract_astar.plot" using 1:2 smooth bezier title "A*" linewidth 2 linecolor rgb "orange", \
+     "results/extract_alt.plot" using 1:2 smooth bezier title "ALT" linewidth 2 linecolor rgb "green", \
+     "results/extract_ch.plot" using 1:2 smooth bezier title "CH" linewidth 2 linecolor rgb "red"

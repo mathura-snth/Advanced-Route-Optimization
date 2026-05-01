@@ -68,3 +68,15 @@ if mem_stats:
     df_mem = pd.DataFrame(mem_stats)
     print("\nSTATISTIQUES DE MÉMOIRE")
     print(df_mem.to_string(index=False))
+
+# PARTIE 3 : ANALYSE DES COÛTS DE PRÉTRAITEMENT
+pre_file = 'results/pretraitements_costs.txt'
+
+if os.path.exists(pre_file):
+    df_pre = pd.read_csv(pre_file, sep=' ', header=None, names=['Algo', 'Temps (secondes)', 'Surcoût RAM (Mo)'])
+    print("\nCOÛT DU PRÉTRAITEMENT")
+    print(df_pre.to_string(index=False))
+else:
+    print(f"\nFichier de prétraitement introuvable: {pre_file}. Relancez le programme C.")
+    
+print("\n")

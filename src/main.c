@@ -99,6 +99,11 @@ void run_evaluation(csr_graph_t *graphe, coordonnees_t *coords, ch_graph_t *ch, 
     save_values(t_ch,       "results/time_ch.plot");
     save_values(m_dijkstra, "results/memory_dijkstra.plot");
     save_values(m_ch,       "results/memory_ch.plot");
+    // pour afficher le nombre de noeuds visités
+    save_values(e_dijkstra, "results/extract_dijkstra.plot");
+    save_values(e_astar,    "results/extract_astar.plot");
+    save_values(e_alt,      "results/extract_alt.plot");
+    save_values(e_ch,       "results/extract_ch.plot");
 
     printf("\n--- BILAN SUR %d REQUETES REUSSIES ---\n", success_count);
     printf("Algo      | Temps Moyen (ms) | Extractions Moy. | Ecart-type Temps\n");
@@ -143,13 +148,26 @@ int main() {
     for (int i = 0; i < nb_landmarks; i++) { distances_landmarks[i] = dijkstra_pour_landmark(graphe, landmarks[i]); }
     
     clock_gettime(CLOCK_REALTIME, &pre_after);
-    printf("Pre-calculs ALT termines en %.2f secondes.\n", (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1e9);
+    //pour alt : mult du nombre de landmarks par la taille du tableau de distances
+    double temps_pre_alt = (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1e9;
+    double mem_pre_alt = (nb_landmarks * graphe->nb_noeuds * sizeof(double)) / (1024.0 * 1024.0);
+    printf("Pre-traitement ALT termine en %.2f secondes.\n", (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1e9);
 
     printf("\nCH : pretraitement Contraction Hierarchies...\n");
     clock_gettime(CLOCK_REALTIME, &pre_before);
     ch_graph_t *ch = pretraitement_ch(graphe); 
     clock_gettime(CLOCK_REALTIME, &pre_after);
-    printf("Pre-calculs CH termines en %.2f secondes.\n", (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1e9);
+    // pour ch : tableaux d'arêtes + tableaux de noeuds
+    double temps_pre_ch = (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1e9;
+    double mem_pre_ch = (2 * (ch->up_first_edge[ch->num_nodes] + 1) * (sizeof(int) + sizeof(double)) + (ch->num_nodes * sizeof(int))) / (1024.0 * 1024.0);
+    printf("Pre-traitement CH termine en %.2f secondes.\n", (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1e9);
+    // sauvegarde des pré-traitement
+    FILE *f_pre = fopen("results/pretraitements_costs.txt", "w");
+    if(f_pre) {
+        fprintf(f_pre, "ALT %lf %lf\n", temps_pre_alt, mem_pre_alt);
+        fprintf(f_pre, "CH %lf %lf\n", temps_pre_ch, mem_pre_ch);
+        fclose(f_pre);
+    }
 
     run_evaluation(graphe, coords, ch, distances_landmarks, nb_landmarks);
 
