@@ -139,7 +139,7 @@ int main() {
     int *landmarks = malloc(nb_landmarks * sizeof(int));
     srand(42); 
     
-    printf("\nALT : selection de %d landmarks...\n", nb_landmarks);
+    printf("\nALT : selection de %d landmarks\n", nb_landmarks);
     struct timespec pre_before, pre_after;
     clock_gettime(CLOCK_REALTIME, &pre_before);
     
@@ -153,7 +153,7 @@ int main() {
     double mem_pre_alt = (nb_landmarks * graphe->nb_noeuds * sizeof(double)) / (1024.0 * 1024.0);
     printf("Pre-traitement ALT termine en %.2f secondes.\n", (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1e9);
 
-    printf("\nCH : pretraitement Contraction Hierarchies...\n");
+    printf("\nCH : pretraitement Contraction Hierarchies\n");
     clock_gettime(CLOCK_REALTIME, &pre_before);
     ch_graph_t *ch = pretraitement_ch(graphe); 
     clock_gettime(CLOCK_REALTIME, &pre_after);
