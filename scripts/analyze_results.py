@@ -20,8 +20,10 @@ def analyze_plot(filename, label, is_memory=False):
         }
     else:
         # Le temps est en secondes, on le convertit en millisecondes (ms)
+        mean_sec = values.mean() # pour débit
         stats = {
             'Algo': label,
+            'Débit (req/s)': int(1 / mean_sec) if mean_sec > 0 else 0,
             'Moyenne (ms)': values.mean() * 1000,
             'Médiane (ms)': values.median() * 1000,
             'P95 (ms)': np.percentile(values, 95) * 1000,
