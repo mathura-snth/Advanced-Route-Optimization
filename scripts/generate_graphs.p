@@ -46,3 +46,20 @@ plot "results/extract_dijkstra.plot" using 1:2 smooth bezier title "Dijkstra" li
      "results/extract_astar.plot" using 1:2 smooth bezier title "A*" linewidth 2 linecolor rgb "orange", \
      "results/extract_alt.plot" using 1:2 smooth bezier title "ALT" linewidth 2 linecolor rgb "green", \
      "results/extract_ch.plot" using 1:2 smooth bezier title "CH" linewidth 2 linecolor rgb "red"
+
+
+# 4. GRAPHIQUE DES RELAXATIONS
+set output "results/relaxations_graph_gnuplot.png"
+set title "Espace de recherche : Nombre de relaxations"
+set ylabel "Nombre de relaxations"
+
+# On s'assure que l'échelle logarithmique est bien active
+set logscale y 10
+set format y "10^{%L}"
+set yrange [*:*]
+
+# On garde le lissage bezier et les mêmes couleurs pour la cohérence visuelle
+plot "results/relaxations_dijkstra.plot" using 1:2 smooth bezier title "Dijkstra" linewidth 2 linecolor rgb "blue", \
+     "results/relaxations_astar.plot" using 1:2 smooth bezier title "A*" linewidth 2 linecolor rgb "orange", \
+     "results/relaxations_alt.plot" using 1:2 smooth bezier title "ALT" linewidth 2 linecolor rgb "green", \
+     "results/relaxations_ch.plot" using 1:2 smooth bezier title "CH" linewidth 2 linecolor rgb "red"
