@@ -17,10 +17,10 @@ resultat_t alt(csr_graph_t *g, int start, int end, int nb_l, double **dist_l);
 double* dijkstra_pour_landmark(csr_graph_t *graphe, int landmark);
 
 typedef struct {
-    int num_nodes;
+    int num_noeuds;
     int *rank;
-    int *up_first_edge;
-    arete_t *up_edges;
+    int *up_first_arete;
+    arete_t *up_aretes;
 } ch_graph_t;
 
 ch_graph_t* pretraitement_ch(csr_graph_t *graphe);

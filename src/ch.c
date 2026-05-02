@@ -8,15 +8,15 @@
 
 // liste chaînée d'adjacence (plus flexible que CSR pour ajouter des raccourcis) temporaire pour le graphe pendant la contraction
 // structure pour une arête sous forme de liste chaînée
-typedef struct edge_node {
+typedef struct voisin {
     int cible;
     double poids;
-    struct edge_node *suivant;
-} edge_node_t;
+    struct voisin *suivant;
+} voisin_t;
 
 // pour éviter de créer des arêtes en double
-void ajouter_arete_si_mieux(edge_node_t **adj, int u, int v, double poids) {
-    for (edge_node_t *e = adj[u]; e != NULL; e = e->suivant) { //on parcourt tous les edge_node_t (les routes) qui partent du noeud u
+void ajouter_arete_si_mieux(voisin_t **adj, int u, int v, double poids) {
+    for (voisin_t *e = adj[u]; e != NULL; e = e->suivant) { //on parcourt tous les voisin_t (les routes) qui partent du noeud u
         // on ajoute pas si l'arête u-v existe déjà ET qu'elle est plus courte
         if (e->cible == v) {
             if (poids < e->poids) e->poids = poids;
@@ -24,7 +24,7 @@ void ajouter_arete_si_mieux(edge_node_t **adj, int u, int v, double poids) {
         }
     }
     // ajout de v au début de la liste chainée de u (adj[u] = liste chaînée des voisins de u)
-    edge_node_t *nouvelle = malloc(sizeof(edge_node_t));
+    voisin_t *nouvelle = malloc(sizeof(voisin_t));
     nouvelle->cible = v;
     nouvelle->poids = poids;
     nouvelle->suivant = adj[u];
@@ -32,8 +32,8 @@ void ajouter_arete_si_mieux(edge_node_t **adj, int u, int v, double poids) {
 }
 
 // contraction d'un noeud
-// retourne l'Edge Difference = (raccourcis créés) - (arêtes supprimées)
-int traiter_noeud(int v, edge_node_t **adj, ch_graph_t *ch, double *dist, int *visites, tas_binaire_t *tas, int vraie_contraction) {
+// retourne l'arete Difference = (raccourcis créés) - (arêtes supprimées)
+int traiter_noeud(int v, voisin_t **adj, ch_graph_t *ch, double *dist, int *visites, tas_binaire_t *tas, int vraie_contraction) {
 
     int nb_voisins = 0;
     int max_voisins = 2000;
@@ -44,8 +44,8 @@ int traiter_noeud(int v, edge_node_t **adj, ch_graph_t *ch, double *dist, int *v
     int aretes_supprimees = 0;
 
     // on parcourt tous les voisins et on récupère comme voisins de v seuls ses voisins non contractés
-    for (edge_node_t *e = adj[v]; e != NULL; e = e->suivant) {
-        if (ch->rank[e->cible] == ch->num_nodes) { // noeud pas contracté car son rang n'a pas changé du rang initial num_nodes
+    for (voisin_t *e = adj[v]; e != NULL; e = e->suivant) {
+        if (ch->rank[e->cible] == ch->num_noeuds) { // noeud pas contracté car son rang n'a pas changé du rang initial num_noeuds
             if (nb_voisins < max_voisins) {
                 voisins[nb_voisins] = e->cible;
                 poids_voisins[nb_voisins] = e->poids;
@@ -85,11 +85,11 @@ int traiter_noeud(int v, edge_node_t **adj, ch_graph_t *ch, double *dist, int *v
                 // Si la distance devient plus grande que le cout via V, ça sert à rien de continuer car on sait qu'on va devoir créer un raccourci
                 if (courant.cout_reel > cout_via_v) break;
 
-                for (edge_node_t *e = adj[noeud]; e != NULL; e = e->suivant) {
+                for (voisin_t *e = adj[noeud]; e != NULL; e = e->suivant) {
                     int voisin = e->cible;
 
                     if (voisin == v) continue; // v est le noeud interdit
-                    if (ch->rank[voisin] != ch->num_nodes) continue; // Uniquement non contractés
+                    if (ch->rank[voisin] != ch->num_noeuds) continue; // Uniquement non contractés
                     
                     if (dist[voisin] == DBL_MAX) { // À la fin de cette recherche, au lieu de faire une boucle sur TOUS LES noeuds pour remettre le tableau dist à l'infini on ne remettra à l'infini que la poignée de noeuds notés dans visites
                         visites[nb_visites++] = voisin;
@@ -129,19 +129,19 @@ ch_graph_t* pretraitement_ch(csr_graph_t *graphe) {
     int n = graphe->nb_noeuds;
 
     ch_graph_t *ch = malloc(sizeof(ch_graph_t));
-    ch->num_nodes = n;
+    ch->num_noeuds = n;
     ch->rank = malloc(n * sizeof(int));
 
     for (int i = 0; i < n; i++) {
         ch->rank[i] = n; // aucun noeud contracté (or les rangs vont de 0 à n-1 donc ça revient à l'infini)
     }
     // liste chaînée (case = pointeur vers liste chainée d'arêtes)
-    edge_node_t **adj = calloc(n, sizeof(edge_node_t*));
+    voisin_t **adj = calloc(n, sizeof(voisin_t*));
 
     // passage du CSR à liste chaînée où on ajoutera tous les raccourcis
     for (int u = 0; u < n; u++) { // parcourt tous les noeuds
-        for (int i = graphe->first_edge[u]; i < graphe->first_edge[u+1]; i++) { // parcourt voisins de u
-            ajouter_arete_si_mieux(adj, u, graphe->edges[i].cible, graphe->edges[i].poids);
+        for (int i = graphe->first_arete[u]; i < graphe->first_arete[u+1]; i++) { // parcourt voisins de u
+            ajouter_arete_si_mieux(adj, u, graphe->aretes[i].cible, graphe->aretes[i].poids);
         }
     }
 
@@ -150,11 +150,11 @@ ch_graph_t* pretraitement_ch(csr_graph_t *graphe) {
     for (int i = 0; i < n; i++) dist[i] = DBL_MAX;
 
     // tas_temoins pour trouver le chemin le plus court sur la carte (trier des distances)
-    // tas_scores pour trier l'importance des noeuds (edge diff)
+    // tas_scores pour trier l'importance des noeuds (arete diff)
     int *visites = malloc(n * sizeof(int));
     tas_binaire_t *tas_temoins = tas_create(graphe->nb_aretes + n);
 
-    // EDGE DIFFERENCE
+    // arete DIFFERENCE
     double *score = malloc(n * sizeof(double));
     tas_binaire_t *tas_scores = tas_create(n * 10); // pour lazy update et donc add nouveau score sans supp anciens
 
@@ -229,39 +229,39 @@ ch_graph_t* pretraitement_ch(csr_graph_t *graphe) {
     vers un noeud plus important (contracté tard)
     */
     for (int u = 0; u < n; u++) { // pour savoir combien d'arete on garde
-        for (edge_node_t *e = adj[u]; e != NULL; e = e->suivant) {
+        for (voisin_t *e = adj[u]; e != NULL; e = e->suivant) {
             if (ch->rank[u] < ch->rank[e->cible]) {
                 nb_aretes_up++;
             }
         }
     }
 
-    ch->up_first_edge = calloc(n + 1, sizeof(int));
-    ch->up_edges = malloc(nb_aretes_up * sizeof(arete_t));
+    ch->up_first_arete = calloc(n + 1, sizeof(int));
+    ch->up_aretes = malloc(nb_aretes_up * sizeof(arete_t));
 
     // Deuxieme lecture : remplissage (même boucle mais on écrit les données cette fois)
     int index = 0;
     
     for (int u = 0; u < n; u++) {
-        ch->up_first_edge[u] = index;
+        ch->up_first_arete[u] = index;
 
-        for (edge_node_t *e = adj[u]; e != NULL; e = e->suivant) {
+        for (voisin_t *e = adj[u]; e != NULL; e = e->suivant) {
             if (ch->rank[u] < ch->rank[e->cible]) {
-                ch->up_edges[index].cible = e->cible;
-                ch->up_edges[index].poids = e->poids;
+                ch->up_aretes[index].cible = e->cible;
+                ch->up_aretes[index].poids = e->poids;
                 index++;
             }
         }
     }
 
-    ch->up_first_edge[n] = index; //balise de fin
+    ch->up_first_arete[n] = index; //balise de fin
 
     // libération graphe (liste chainée) temporaire adj
     for (int u = 0; u < n; u++) {
-        edge_node_t *courant = adj[u];
+        voisin_t *courant = adj[u];
 
         while (courant != NULL) {
-            edge_node_t *suivant = courant->suivant;
+            voisin_t *suivant = courant->suivant;
             free(courant);
             courant = suivant;
         }
@@ -275,7 +275,7 @@ ch_graph_t* pretraitement_ch(csr_graph_t *graphe) {
 // --- PHASE 2 : RECHERCHE (DIJKSTRA BIDIRECTIONNEL) ---
 resultat_t ch_search(ch_graph_t *ch, int depart, int arrivee) {
     // 2 tableaux pour calculer distances depuis départ et depuis arrivée
-    int n = ch->num_nodes;
+    int n = ch->num_noeuds;
 
     double *dist_aller = malloc(n * sizeof(double));
     double *dist_retour = malloc(n * sizeof(double));
@@ -285,8 +285,8 @@ resultat_t ch_search(ch_graph_t *ch, int depart, int arrivee) {
         dist_retour[i] = DBL_MAX;
     }
 
-    tas_binaire_t *tas_aller = tas_create(ch->up_first_edge[n] + 1); // on donne pour taille le nb d'arete du graphe ascendant filtré
-    tas_binaire_t *tas_retour = tas_create(ch->up_first_edge[n] + 1);
+    tas_binaire_t *tas_aller = tas_create(ch->up_first_arete[n] + 1); // on donne pour taille le nb d'arete du graphe ascendant filtré
+    tas_binaire_t *tas_retour = tas_create(ch->up_first_arete[n] + 1);
 
     dist_aller[depart] = 0.0;
     tas_ajout(tas_aller, depart, 0.0, 0.0);
@@ -334,10 +334,10 @@ resultat_t ch_search(ch_graph_t *ch, int depart, int arrivee) {
                     meilleur = total;
                 }
             }
-            // graphe ascendant : on suit que les routes qui montent vers rangs plus haut (noeud plus important) d'où up_edges
-            for (int i = ch->up_first_edge[courant.sommet]; i < ch->up_first_edge[courant.sommet+1]; i++) {
-                int v = ch->up_edges[i].cible;
-                double w = ch->up_edges[i].poids;
+            // graphe ascendant : on suit que les routes qui montent vers rangs plus haut (noeud plus important) d'où up_aretes
+            for (int i = ch->up_first_arete[courant.sommet]; i < ch->up_first_arete[courant.sommet+1]; i++) {
+                int v = ch->up_aretes[i].cible;
+                double w = ch->up_aretes[i].poids;
 
                 if (dist_aller[courant.sommet] + w < dist_aller[v]) {
                     dist_aller[v] = dist_aller[courant.sommet] + w;
@@ -359,9 +359,9 @@ resultat_t ch_search(ch_graph_t *ch, int depart, int arrivee) {
                 if (total < meilleur) meilleur = total;
             }
 
-            for (int i = ch->up_first_edge[u]; i < ch->up_first_edge[u+1]; i++) {
-                int v = ch->up_edges[i].cible;
-                double w = ch->up_edges[i].poids;
+            for (int i = ch->up_first_arete[u]; i < ch->up_first_arete[u+1]; i++) {
+                int v = ch->up_aretes[i].cible;
+                double w = ch->up_aretes[i].poids;
 
                 if (dist_retour[u] + w < dist_retour[v]) {
                     dist_retour[v] = dist_retour[u] + w;
@@ -390,8 +390,8 @@ resultat_t ch_search(ch_graph_t *ch, int depart, int arrivee) {
 void free_ch(ch_graph_t *ch) {
     if (ch) {
         free(ch->rank);
-        free(ch->up_first_edge);
-        free(ch->up_edges);
+        free(ch->up_first_arete);
+        free(ch->up_aretes);
         free(ch);
     }
 }

@@ -32,12 +32,12 @@ double* dijkstra_pour_landmark(csr_graph_t *graphe, int landmark) {
 
         if (courant.cout_reel > distances[u]) continue;
 
-        int debut_aretes = graphe->first_edge[u];
-        int fin_aretes = graphe->first_edge[u + 1];
+        int debut_aretes = graphe->first_arete[u];
+        int fin_aretes = graphe->first_arete[u + 1];
 
         for (int i = debut_aretes; i < fin_aretes; i++) {
-            int v = graphe->edges[i].cible;
-            double poids = graphe->edges[i].poids;
+            int v = graphe->aretes[i].cible;
+            double poids = graphe->aretes[i].poids;
 
             if (distances[u] + poids < distances[v]) {
                 distances[v] = distances[u] + poids;
@@ -106,12 +106,12 @@ resultat_t alt(csr_graph_t *graphe, int depart, int arrivee, int nb_landmarks, d
         // early exit
         if (u == arrivee) break; 
 
-        int debut_aretes = graphe->first_edge[u];
-        int fin_aretes = graphe->first_edge[u + 1];
+        int debut_aretes = graphe->first_arete[u];
+        int fin_aretes = graphe->first_arete[u + 1];
 
         for (int i = debut_aretes; i < fin_aretes; i++) {
-            int v = graphe->edges[i].cible;
-            double poids = graphe->edges[i].poids;
+            int v = graphe->aretes[i].cible;
+            double poids = graphe->aretes[i].poids;
 
             if (distances[u] + poids < distances[v]) {
                 nb_relaxations++; 

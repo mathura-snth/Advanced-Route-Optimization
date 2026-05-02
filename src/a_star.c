@@ -71,13 +71,13 @@ resultat_t a_star(csr_graph_t *graphe, coordonnees_t *coords, int depart, int ar
         if (u == arrivee) break; 
 
         // recupération des voisins de u (en O(1) grace CSR)
-        int debut_aretes = graphe->first_edge[u]; // indice de dep
-        int fin_aretes = graphe->first_edge[u + 1]; // indice de fin
+        int debut_aretes = graphe->first_arete[u]; // indice de dep
+        int fin_aretes = graphe->first_arete[u + 1]; // indice de fin
 
         // parcourt arêtes sortantes du sommet u
         for (int i = debut_aretes; i < fin_aretes; i++) {
-            int v = graphe->edges[i].cible;
-            double poids = graphe->edges[i].poids; // cout de l'arete entre u et v
+            int v = graphe->aretes[i].cible;
+            double poids = graphe->aretes[i].poids; // cout de l'arete entre u et v
 
 
             // relaxation : si on passe par u, est ce que le chemin pour atteindre v est plus court que l'ancienne distance qu'on connaissait pr v ?

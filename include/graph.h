@@ -13,8 +13,8 @@ typedef struct {
 typedef struct {
     int nb_noeuds;
     int nb_aretes;
-    int *first_edge; // tableau des offsets = index
-    arete_t *edges;  // tableau de toutes les arêtes les unes à la suite des autres
+    int *first_arete; // tableau des offsets = index
+    arete_t *aretes;  // tableau de toutes les arêtes les unes à la suite des autres
 } csr_graph_t;
 
 // coordonnées + heuristique :

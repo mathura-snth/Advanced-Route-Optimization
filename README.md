@@ -19,12 +19,12 @@ Pour transformer les données brutes d'OpenStreetMap en un graphe exploitable pa
 
 Ce qu'on a apporté comme modifications/optimisations :
 - Structures des données des .txt générés :
-  1) `self.nodes` sous forme de dictionnaire : pour stocker temporairement les intersections. (dico pour rechercher par ID en temps constant O(1), indispensable pour récupérer instantanément les coordonnées GPS lors de la lecture des routes)
-  2) `self.edges` sous forme de liste : pour accumuler les segments de route. L'ajout en fin de liste facilite la conversion finale vers un DataFrame pandas
+  1) `self.noeuds` sous forme de dictionnaire : pour stocker temporairement les intersections. (dico pour rechercher par ID en temps constant O(1), indispensable pour récupérer instantanément les coordonnées GPS lors de la lecture des routes)
+  2) `self.aretes` sous forme de liste : pour accumuler les segments de route. L'ajout en fin de liste facilite la conversion finale vers un DataFrame pandas
 
 - On a filtré pour ne conserver que les types de routes ('motorway', 'trunk' etc) pertinents. Enfin,la sortie a été entièrement restructurée, on a remappé les identifiants OSM pour n'avoir que des valeurs contigues entre 0 et N.
 
-- Comme on a que des points GPS (longitute, latitude), on n'a pas la longueur des routes. On ajoute donc la formule Haversine pour calculer la longueur physique de chaque petit bout de rue entre deux intersections voisines. On calcule donc la distance entre un point A et son voisin direct B, qui devient le poids de l'arête dans le fichier `edges.txt`.
+- Comme on a que des points GPS (longitute, latitude), on n'a pas la longueur des routes. On ajoute donc la formule Haversine pour calculer la longueur physique de chaque petit bout de rue entre deux intersections voisines. On calcule donc la distance entre un point A et son voisin direct B, qui devient le poids de l'arête dans le fichier `aretes.txt`.
 
 **Formule Haversine :** 
 C'est la distance du grand cercle entre deux points d'une sphère, à partir de leurs longitudes et latitudes (d'après Wikipedia https://fr.wikipedia.org/wiki/Formule_de_haversine).
@@ -33,8 +33,8 @@ d = 2R * arcin(sqrt(a))
 avec a = sin((lat2 - lat1)/2)^2 + cos(lat1) * cos(lat2) * sin((lon2 - lon1)/2)^2.
 
 **Fichiers générés :**
-* `nodes.txt` : contient les sommets (id mappé, latitude, longitude). Nécessaire pour les heuristiques géométriques (comme A*).
-* `edges.txt` : contient les arêtes (source, destination, distance).
+* `noeuds.txt` : contient les sommets (id mappé, latitude, longitude). Nécessaire pour les heuristiques géométriques (comme A*).
+* `aretes.txt` : contient les arêtes (source, destination, distance).
 
 ---
 ## 2. Le Graphe CSR : Représentation en Mémoire
@@ -55,17 +55,17 @@ Par exemple, admettons qu'on ait :
 
 Sur un graphe de plusieurs millions d'arêtes, nous économisons de la mémoire vive en supprimant la redondance du noeud source.
 
-**Accélération de l'accès aux voisins** : pour retrouver ces voisins sans stocker la source, on utilise un tableau d'index appelé `first_edge` (= offsets) pour savoir où commencent les voisins du noeud courant. Le fait que la mémoire soit contigue permet de charger les blocs de voisins directement dans le cache, garantissant une itération sur les voisins rapide et un accès direct en O(1).
+**Accélération de l'accès aux voisins** : pour retrouver ces voisins sans stocker la source, on utilise un tableau d'index appelé `first_arete` (= offsets) pour savoir où commencent les voisins du noeud courant. Le fait que la mémoire soit contigue permet de charger les blocs de voisins directement dans le cache, garantissant une itération sur les voisins rapide et un accès direct en O(1).
 
-Par exemple, `first_edge[0] = 0;` `first_edge[1] = 2;` `first_edge[2] = 3`.
+Par exemple, `first_arete[0] = 0;` `first_arete[1] = 2;` `first_arete[2] = 3`.
 Si on veut les voisins du noeud 0 :
- - Début : `first_edge[0] = 0`
- - Fin : `first_edge[1] = 2`
+ - Début : `first_arete[0] = 0`
+ - Fin : `first_arete[1] = 2`
  - Donc on lit les cases 0 et 1 (on exclut la borne de fin 2). On obtient bien les deux arêtes du noeud 0.
 
 Ainsi on a :
-* `edges` : Un tableau unique qui regroupe **toutes** les arêtes du graphe (destination + poids).
-* `first_edge` : Un tableau d'offsets (index). Pour accéder aux voisins d'un noeud U, l'algorithme lit `edges` de l'indice `first_edge[U]` à `first_edge[U+1]`.
+* `aretes` : Un tableau unique qui regroupe **toutes** les arêtes du graphe (destination + poids).
+* `first_arete` : Un tableau d'offsets (index). Pour accéder aux voisins d'un noeud U, l'algorithme lit `aretes` de l'indice `first_arete[U]` à `first_arete[U+1]`.
 
 
 ### Construction du CSR
@@ -75,8 +75,8 @@ On doit résoudre 2 problèmes :
 
 Pour cela on implémente en 3 lectures du fichier :
 1. **Évaluation :** 1ère lecture du fichier pour identifier l'id maximal (N noeuds) et compter le nombre total des arêtes, permettant une allocation mémoire (`malloc`) sans gaspillage.
-2. **Calcul des degrés :** 2ème lecture du fichier pour compter le nombre d'arêtes sortantes pour chaque noeud (= nombre de voisins de chaque noeud), puis transformation de ces degrés en tableau d'index (offsets) via une somme (accumulation) qui permet de générer `first_edge`.
-3. **Remplissage :** 3ème lecture pour parcourir le fichier désordonné, on utilise une copie temporaire (current_offset), chaque arête lue est insérée dans la case mémoire qui lui était réservée (bon nombre de résevation grâce à 1ère lecture). On a alors un remplissage contigu du tableau `edges`.
+2. **Calcul des degrés :** 2ème lecture du fichier pour compter le nombre d'arêtes sortantes pour chaque noeud (= nombre de voisins de chaque noeud), puis transformation de ces degrés en tableau d'index (offsets) via une somme (accumulation) qui permet de générer `first_arete`.
+3. **Remplissage :** 3ème lecture pour parcourir le fichier désordonné, on utilise une copie temporaire (current_offset), chaque arête lue est insérée dans la case mémoire qui lui était réservée (bon nombre de résevation grâce à 1ère lecture). On a alors un remplissage contigu du tableau `aretes`.
 
 ---
 ## 3 Algorithme de Dijkstra et file de priorité - stratégie paresseuse
@@ -115,7 +115,7 @@ Dans un tas de Fibonacci, on ne cherche pas à avoir une structure parfaite à c
 3) Tant que le tas n'est pas vide :
  - **Extraction du minimum** : sommet U ayant la plus petite distance cumulée
  - **Early Exit** : Si le sommet extrait U est la destination, on arrête puisque c'est le chemin le plus court définitif (propriété min-heap dont on parlait).
- - **Relaxation via CSR** : on prend les arêtes sortantes de U en utilisant la structure CSR (de first_edge[U] à first_edge[U+1]). Pour chaque voisin V, si la distance pour l'atteindre en passant par U est inférieure à sa distance actuellement connue, on met à jour le tableau distances, on insère la nouvelle paire dans le tas et on recommence.
+ - **Relaxation via CSR** : on prend les arêtes sortantes de U en utilisant la structure CSR (de first_arete[U] à first_arete[U+1]). Pour chaque voisin V, si la distance pour l'atteindre en passant par U est inférieure à sa distance actuellement connue, on met à jour le tableau distances, on insère la nouvelle paire dans le tas et on recommence.
 
 **Complexité** : Avec notre implémentation via tas binaire et format CSR, l'algorithme s'exécute avec une complexité temporelle de O((V + E) \log V) dans le pire des cas, ce qui permet de traiter le réseau routiers en moins d'une minute.
 
@@ -132,7 +132,7 @@ Avec :
 
 Pour que A* trouve toujours le chemin le plus court, l'heuristique h(v) doit être **admissible**. Elle ne doit **jamais surestimer** la distance réelle
 
-On utilise pour cela la **formule Haversine** (calculée à partir des coordonnées dans `nodes.txt`). Or comme la ligne droite est le chemin le plus court entre deux points, la distance à vol d'oiseau est une heuristique admissible pour notre réseau routier.
+On utilise pour cela la **formule Haversine** (calculée à partir des coordonnées dans `noeuds.txt`). Or comme la ligne droite est le chemin le plus court entre deux points, la distance à vol d'oiseau est une heuristique admissible pour notre réseau routier.
 
 **Adaptation du tas binaire pour A***
 Le passage de Dijkstra à A* a nécessité une modification de la structure de notre tas binaire :
@@ -140,7 +140,7 @@ Le passage de Dijkstra à A* a nécessité une modification de la structure de n
 - Vérification du coût réel : de suppression paresseuse, on stocke aussi, en plus de f(v), la distance réelle g(v) dans chaque élément du tas (`cout_reel`). Ainsi la comparaison pour l'extraction se fait sur g (`if (courant.cout_reel > distances[u]) continue;`) car c'est la seule valeur qui représente un coût réel atteint (= distance physiquement valide).
 
 **Déroulement et Performance**
-- Contrairement à Dijkstra, A* nécessite de charger le fichier `nodes.txt` pour accéder directement aux latitudes/longitudes de chaque sommet.
+- Contrairement à Dijkstra, A* nécessite de charger le fichier `noeuds.txt` pour accéder directement aux latitudes/longitudes de chaque sommet.
 - À chaque itération, A* extrait le noeud qui minimise la distance totale estimée.
 
 Ainsi on a réellement un gain d'efficacité : dans nos tests sur le réseau Île-de-France, A* réduit énormément le nombre d'extractions (noeuds visités) par rapport à Dijkstra. En ignorant les routes qui s'éloignent de la destination, le temps de calcul est divisé tout en ayant le même résultat optimal.
@@ -185,11 +185,11 @@ Le pré-traitement consiste à contracter les sommets un à un selon un ordre d�
 
 Chaque sommet reçoit un rang, correspondant à son ordre de contraction : plus son rang est élevé, plus il est considéré comme important dans la hiérarchie.
 
-- **choix de l’ordre de contraction, Edge Difference** : l’efficacité de CH dépend fortement de l’ordre choisi. Nous utilisons l’heuristique abordée par John Lazarsfeld (https://jlazarsfeld.github.io/ch.150.project) de l’Edge Difference, définie par : ED(v)= ∣raccourcis(v)∣ − ∣arêtes supprimées(v)|
+- **choix de l’ordre de contraction, arete Difference** : l’efficacité de CH dépend fortement de l’ordre choisi. Nous utilisons l’heuristique abordée par John Lazarsfeld (https://jlazarsfeld.github.io/ch.150.project) de l’arete Difference, définie par : ED(v)= ∣raccourcis(v)∣ − ∣arêtes supprimées(v)|
 
 Cette métrique favorise les sommets dont la contraction simplifie fortement le graphe tout en ajoutant peu de nouveaux raccourcis.
 
-- **stratégie de mise à jour paresseuse, Lazy Update** : Comme la contraction d'un noeud modifie l'Edge Difference de ses voisins (donc les scores des autres sommets deviennent potentiellement obsolètes), nous utilisons une file de priorité pour maintenir l'ordre. Plutôt que de tout recalculer (coûteux), nous employons une stratégie paresseuse :
+- **stratégie de mise à jour paresseuse, Lazy Update** : Comme la contraction d'un noeud modifie l'arete Difference de ses voisins (donc les scores des autres sommets deviennent potentiellement obsolètes), nous utilisons une file de priorité pour maintenir l'ordre. Plutôt que de tout recalculer (coûteux), nous employons une stratégie paresseuse :
       - le sommet extrait du tas voit son score recalculé
       - si ce score reste meilleur ou équivalent au prochain meilleur candidat valide, il est contracté
       - sinon il est réinséré avec sa nouvelle priorité.

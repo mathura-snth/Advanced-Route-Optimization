@@ -41,7 +41,7 @@ void run_evaluation(csr_graph_t *graphe, coordonnees_t *coords, ch_graph_t *ch, 
     double mem_classique = (graphe->nb_noeuds * (sizeof(double) + sizeof(int))) + (graphe->nb_aretes * sizeof(element_tas_t));
     
     // CH utilise: 2 tableaux dist (aller/retour) + 2 tas basés sur le graphe ascendant
-    double mem_contraction = (2 * ch->num_nodes * sizeof(double)) + (2 * (ch->up_first_edge[ch->num_nodes] + 1) * sizeof(element_tas_t));
+    double mem_contraction = (2 * ch->num_noeuds * sizeof(double)) + (2 * (ch->up_first_arete[ch->num_noeuds] + 1) * sizeof(element_tas_t));
 
     while (success_count < NB_REQUETES) {
         tentatives++;
@@ -128,11 +128,11 @@ void run_evaluation(csr_graph_t *graphe, coordonnees_t *coords, ch_graph_t *ch, 
 
 int main() {
     printf("Chargement du graphe CSR\n");
-    csr_graph_t *graphe = load_graph("data/edges.txt");
+    csr_graph_t *graphe = load_graph("data/aretes.txt");
     if (!graphe) return EXIT_FAILURE;
 
     printf("Chargement des coordonnees\n");
-    coordonnees_t *coords = charger_coordonnees("data/nodes.txt", graphe->nb_noeuds);
+    coordonnees_t *coords = charger_coordonnees("data/noeuds.txt", graphe->nb_noeuds);
     if (!coords) { free_graph(graphe); return EXIT_FAILURE; }
 
     int nb_landmarks = 10;
@@ -159,7 +159,7 @@ int main() {
     clock_gettime(CLOCK_REALTIME, &pre_after);
     // pour ch : tableaux d'arêtes + tableaux de noeuds
     double temps_pre_ch = (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1e9;
-    double mem_pre_ch = (2 * (ch->up_first_edge[ch->num_nodes] + 1) * (sizeof(int) + sizeof(double)) + (ch->num_nodes * sizeof(int))) / (1024.0 * 1024.0);
+    double mem_pre_ch = (2 * (ch->up_first_arete[ch->num_noeuds] + 1) * (sizeof(int) + sizeof(double)) + (ch->num_noeuds * sizeof(int))) / (1024.0 * 1024.0);
     printf("Pre-traitement CH termine en %.2f secondes.\n", (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1e9);
     // sauvegarde des pré-traitement
     FILE *f_pre = fopen("results/pretraitements_costs.txt", "w");
