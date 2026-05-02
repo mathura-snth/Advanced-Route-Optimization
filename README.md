@@ -226,22 +226,31 @@ make
 python3 scripts/analyze_results.py
 
 ---
+---
 ## 7. Évaluation - TP1 SDA
 
-Pour valider l'efficacité de nos algorithmes (Dijkstra, A*, ALT, Contraction Hierarchies), on s'est inspiré de la méthodologie vue en cours lors du **TP1 de SDA**. On a réutilisé la structure `analyzer_t`, qu'on a adapté pour supporter l'échelle des graphes routiers.
+Pour valider l'efficacité de nos algorithmes (Dijkstra, A*, ALT, Contraction Hierarchies), on a utilisé la méthodologie vue en cours lors du **TP1 de SDA**. On a réutilisé la structure `analyzer_t`, qu'on a adapté pour supporter l'échelle des graphes routiers.
 
-Pour chaque requête, notre moteur mesure trois métriques critiques :
+### Protocole de test et choix des requêtes
+Afin d'obtenir des résultats corrects et d'éviter que le hasard ne favorise que des trajets très rapides, on a mis en place :
+- **Échantillon représentatif :** Le moteur boucle jusqu'à obtenir 400 requêtes valides, donc si un tirage aléatoire propose un trajet impossible (distance `INFINI`), on l'ignore.
+- **Reproductibilité :** on utilise une graine fixe (`SEED_EVAL = 42`) pour le générateur aléatoire, afin de comparer les performances à chaque modification du code
+- **Catégorisation des distances :** Les requêtes valides sont réparties équitablement en 3 catégories (environ un tiers du total pour chacune) basées sur nos premiers constats on a ajusté l'échelle de distance :
+    - **Trajets courts :** distance inférieure à 25 km (`< 25000`).
+    - **Trajets moyens :** distance comprise entre 25 km et 50 km (`< 50000`).
+    - **Trajets longs :** distance supérieure à 50 km.
+- **Validation de l'exactitude :** L'algorithme de Dijkstra sert de vérité terrain, les distances trouvées par A*, ALT et CH sont comparées au résultat de Dijkstra. On a gardé une légère tolérance (`epsilon = 5.0` mètres) pour ne pas trop fausser les statistiques face aux minuscules erreurs d'accumulation de calcul.
 
-- **Le temps d'exécution brut (ms) :** avec `clock_gettime`, il reflète la vitesse réelle de l'algorithme sur la machine.
-- **L'espace de recherche (Nœuds visités) :** on calcule le nombre d'extractions depuis le tas binair pour montrer l'efficacité de nos heuristiques (A*, ALT) et du filtrage de CH.
-- **L'empreinte mémoire dynamique (RAM) :** on s'est inspiré de l'analyse de la mémoire gaspillée du TP1, on quantifie la mémoire en octets allouée par chaque algorithme pour une requête (taille des tableaux de distances, taille maximale du tas binaire).
+### Métriques mesurées
+Pour chaque requête on mesure :
+- **Le temps d'exécution brut (ms) :** avec `clock_gettime`, la vitesse réelle de l'algorithme sur la machine
+- **L'espace de recherche (Nœuds visités) :** on calcule le nombre d'extractions depuis le tas binaire pour montrer l'efficacité de nos heuristiques (A*, ALT) et du filtrage de CH
+- **Le nombre de relaxations :** pour analyser la quantité d'arêtes évaluées
+- **L'empreinte mémoire dynamique (RAM) :** on quantifie la mémoire allouée par algorithme pour une requête (taille des tableaux de distances et prédécesseurs, taille du tas binaire)
 
-Le fichier `analyzer.c` du TP1 a été adapté pour notre échantillon de 1000 trajets aléatoires : on a ajouté `fclose` pour fermer correctement et éviter les fuites de mémoires et on a ajouté une boucle `while` pour laisser passer des divergences minimes.
-
-Toujours avec le TP1, on a séparé le calcul en C de la visualisation de la données.
-Les données brutes sont exportées sous forme de fichiers `.plot` puis exploitées via :
-- **Gnuplot :** Un script `.p` permet de générer les courbes, reproduisant le comportement du script `launch_analysis.sh`. On a ajouté une échelle logarithmique pour visualiser l'écart de performance énorme entre Dijkstra et Contraction Hierarchies.
-- **Python / Pandas :** le script Python pour calculer des statistiques, notamment le **95e percentile (P95)**.
+Le fichier `analyzer.c` du TP1 a été adapté pour générer et fermer proprement (`fclose`) les fichiers puis on utilise les données avec :
+- **Gnuplot :** Un script `.p` permet de générer les courbes avec une échelle logarithmique pour visualiser l'écart de performance énorme entre Dijkstra et CH.
+- **Python / Pandas :** pour calculer des statistiques globales, notamment le 95e percentile (P95)
 
 ---
 ## 8. Compilation et Exécution

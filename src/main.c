@@ -8,7 +8,7 @@
 #include "tas.h"
 #include "analyzer.h" 
 
-#define NB_REQUETES 900
+#define NB_REQUETES 300
 #define SEED_EVAL 42
 
 void run_evaluation(csr_graph_t *graphe, coordonnees_t *coords, ch_graph_t *ch, double **distances_landmarks, int nb_landmarks) {
