@@ -49,10 +49,10 @@ void run_evaluation(csr_graph_t *graphe, coordonnees_t *coords, ch_graph_t *ch, 
         int s = rand() % graphe->nb_noeuds;
         int t = rand() % graphe->nb_noeuds;
 
-        // Dijkstra (Notre vérité absolue)
+        // Dijkstra
         resultat_t res_d = dijkstra(graphe, s, t);
         
-        // Si aucun chemin n'existe, on ignore cette paire
+        // si aucun chemin n'existe, on ignore cette paire
         if (res_d.distance == INFINI) continue; 
 
         resultat_t res_a = a_star(graphe, coords, s, t);
@@ -62,10 +62,9 @@ void run_evaluation(csr_graph_t *graphe, coordonnees_t *coords, ch_graph_t *ch, 
         // Tolérance souple pour éviter les erreurs d'accumulation de flottants sur les longues distances
         double epsilon = 5.0; 
         
-        if (fabs(res_a.distance - res_d.distance) > epsilon || 
-            fabs(res_c.distance - res_d.distance) > epsilon) {
-            // On signale l'erreur mais on l'accepte pour ne pas bloquer les statistiques de temps
-            fprintf(stderr, "Divergence mineure : Dij=%.2f, A*=%.2f, CH=%.2f\n", res_d.distance, res_a.distance, res_c.distance);
+        if (fabs(res_a.distance - res_d.distance) > epsilon || fabs(res_l.distance - res_d.distance) > epsilon || fabs(res_c.distance - res_d.distance) > epsilon ) {
+            // on signale l'erreur mais on l'accepte pour ne pas bloquer les statistiques de temps
+            fprintf(stderr, "petite divergence : Dijkstra = %.2f, A* = %.2f, Alt = %2.f et CH=%.2f\n", res_d.distance, res_a.distance, res_l.distance, res_c.distance);
         }
 
         // On enregistre les données
@@ -133,7 +132,10 @@ int main() {
 
     printf("Chargement des coordonnees\n");
     coordonnees_t *coords = charger_coordonnees("data/noeuds.csv", graphe->nb_noeuds);
-    if (!coords) { free_graph(graphe); return EXIT_FAILURE; }
+    if (!coords) {
+        free_graph(graphe);
+        return EXIT_FAILURE;
+    }
 
     int nb_landmarks = 10;
     int *landmarks = malloc(nb_landmarks * sizeof(int));
@@ -143,11 +145,16 @@ int main() {
     struct timespec pre_before, pre_after;
     clock_gettime(CLOCK_REALTIME, &pre_before);
     
-    for (int i = 0; i < nb_landmarks; i++) { landmarks[i] = rand() % graphe->nb_noeuds; }
+    for (int i = 0; i < nb_landmarks; i++) {
+        landmarks[i] = rand() % graphe->nb_noeuds;
+    }
     double **distances_landmarks = malloc(nb_landmarks * sizeof(double*));
-    for (int i = 0; i < nb_landmarks; i++) { distances_landmarks[i] = dijkstra_pour_landmark(graphe, landmarks[i]); }
+    for (int i = 0; i < nb_landmarks; i++) {
+        distances_landmarks[i] = dijkstra_pour_landmark(graphe, landmarks[i]);
+    }
     
     clock_gettime(CLOCK_REALTIME, &pre_after);
+
     //pour alt : mult du nombre de landmarks par la taille du tableau de distances
     double temps_pre_alt = (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1000000000.0;
     double mem_pre_alt = (nb_landmarks * graphe->nb_noeuds * sizeof(double)) / (1024.0 * 1024.0);
@@ -171,7 +178,9 @@ int main() {
 
     run_evaluation(graphe, coords, ch, distances_landmarks, nb_landmarks);
 
-    for (int i = 0; i < nb_landmarks; i++) free(distances_landmarks[i]); 
+    for (int i = 0; i < nb_landmarks; i++) {
+        free(distances_landmarks[i]);
+    }
     free(distances_landmarks);
     free(landmarks);
     free_ch(ch);

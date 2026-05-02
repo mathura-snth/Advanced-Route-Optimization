@@ -18,13 +18,13 @@ Pour transformer les données brutes d'OpenStreetMap en un graphe exploitable pa
 - on a appliqué le design pattern recommandé par la documentation officielle de pyosmium : le SimpleHandler (lecture en streaming ligne par ligne et appel de nos fonctions que si l'on rencontre une entité géographique correspondante).
 
 Ce qu'on a apporté comme modifications/optimisations :
-- Structures des données des .txt générés :
+- Structures des données des .csv générés :
   1) `self.noeuds` sous forme de dictionnaire : pour stocker temporairement les intersections. (dico pour rechercher par ID en temps constant O(1), indispensable pour récupérer instantanément les coordonnées GPS lors de la lecture des routes)
   2) `self.aretes` sous forme de liste : pour accumuler les segments de route. L'ajout en fin de liste facilite la conversion finale vers un DataFrame pandas
 
 - On a filtré pour ne conserver que les types de routes ('motorway', 'trunk' etc) pertinents. Enfin,la sortie a été entièrement restructurée, on a remappé les identifiants OSM pour n'avoir que des valeurs contigues entre 0 et N.
 
-- Comme on a que des points GPS (longitute, latitude), on n'a pas la longueur des routes. On ajoute donc la formule Haversine pour calculer la longueur physique de chaque petit bout de rue entre deux intersections voisines. On calcule donc la distance entre un point A et son voisin direct B, qui devient le poids de l'arête dans le fichier `aretes.txt`.
+- Comme on a que des points GPS (longitute, latitude), on n'a pas la longueur des routes. On ajoute donc la formule Haversine pour calculer la longueur physique de chaque petit bout de rue entre deux intersections voisines. On calcule donc la distance entre un point A et son voisin direct B, qui devient le poids de l'arête dans le fichier `aretes.csv`.
 
 **Formule Haversine :** 
 C'est la distance du grand cercle entre deux points d'une sphère, à partir de leurs longitudes et latitudes (d'après Wikipedia https://fr.wikipedia.org/wiki/Formule_de_haversine).
@@ -33,8 +33,8 @@ d = 2R * arcin(sqrt(a))
 avec a = sin((lat2 - lat1)/2)^2 + cos(lat1) * cos(lat2) * sin((lon2 - lon1)/2)^2.
 
 **Fichiers générés :**
-* `noeuds.txt` : contient les sommets (id mappé, latitude, longitude). Nécessaire pour les heuristiques géométriques (comme A*).
-* `aretes.txt` : contient les arêtes (source, destination, distance).
+* `noeuds.csv` : contient les sommets (id mappé, latitude, longitude). Nécessaire pour les heuristiques géométriques (comme A*).
+* `aretes.csv` : contient les arêtes (source, destination, distance).
 
 ---
 ## 2. Le Graphe CSR : Représentation en Mémoire
@@ -132,7 +132,7 @@ Avec :
 
 Pour que A* trouve toujours le chemin le plus court, l'heuristique h(v) doit être **admissible**. Elle ne doit **jamais surestimer** la distance réelle
 
-On utilise pour cela la **formule Haversine** (calculée à partir des coordonnées dans `noeuds.txt`). Or comme la ligne droite est le chemin le plus court entre deux points, la distance à vol d'oiseau est une heuristique admissible pour notre réseau routier.
+On utilise pour cela la **formule Haversine** (calculée à partir des coordonnées dans `noeuds.csv`). Or comme la ligne droite est le chemin le plus court entre deux points, la distance à vol d'oiseau est une heuristique admissible pour notre réseau routier.
 
 **Adaptation du tas binaire pour A***
 Le passage de Dijkstra à A* a nécessité une modification de la structure de notre tas binaire :
@@ -140,7 +140,7 @@ Le passage de Dijkstra à A* a nécessité une modification de la structure de n
 - Vérification du coût réel : de suppression paresseuse, on stocke aussi, en plus de f(v), la distance réelle g(v) dans chaque élément du tas (`cout_reel`). Ainsi la comparaison pour l'extraction se fait sur g (`if (courant.cout_reel > distances[u]) continue;`) car c'est la seule valeur qui représente un coût réel atteint (= distance physiquement valide).
 
 **Déroulement et Performance**
-- Contrairement à Dijkstra, A* nécessite de charger le fichier `noeuds.txt` pour accéder directement aux latitudes/longitudes de chaque sommet.
+- Contrairement à Dijkstra, A* nécessite de charger le fichier `noeuds.csv` pour accéder directement aux latitudes/longitudes de chaque sommet.
 - À chaque itération, A* extrait le noeud qui minimise la distance totale estimée.
 
 Ainsi on a réellement un gain d'efficacité : dans nos tests sur le réseau Île-de-France, A* réduit énormément le nombre d'extractions (noeuds visités) par rapport à Dijkstra. En ignorant les routes qui s'éloignent de la destination, le temps de calcul est divisé tout en ayant le même résultat optimal.
@@ -185,11 +185,11 @@ Le pré-traitement consiste à contracter les sommets un à un selon un ordre d�
 
 Chaque sommet reçoit un rang, correspondant à son ordre de contraction : plus son rang est élevé, plus il est considéré comme important dans la hiérarchie.
 
-- **choix de l’ordre de contraction, arete Difference** : l’efficacité de CH dépend fortement de l’ordre choisi. Nous utilisons l’heuristique abordée par John Lazarsfeld (https://jlazarsfeld.github.io/ch.150.project) de l’arete Difference, définie par : ED(v)= ∣raccourcis(v)∣ − ∣arêtes supprimées(v)|
+- **choix de l’ordre de contraction, Edge Difference** : l’efficacité de CH dépend fortement de l’ordre choisi. Nous utilisons l’heuristique abordée par John Lazarsfeld (https://jlazarsfeld.github.io/ch.150.project) de l’Edge Difference, définie par : ED(v)= ∣raccourcis(v)∣ − ∣arêtes supprimées(v)|
 
 Cette métrique favorise les sommets dont la contraction simplifie fortement le graphe tout en ajoutant peu de nouveaux raccourcis.
 
-- **stratégie de mise à jour paresseuse, Lazy Update** : Comme la contraction d'un noeud modifie l'arete Difference de ses voisins (donc les scores des autres sommets deviennent potentiellement obsolètes), nous utilisons une file de priorité pour maintenir l'ordre. Plutôt que de tout recalculer (coûteux), nous employons une stratégie paresseuse :
+- **stratégie de mise à jour paresseuse, Lazy Update** : Comme la contraction d'un noeud modifie l'Edge Difference de ses voisins (donc les scores des autres sommets deviennent potentiellement obsolètes), nous utilisons une file de priorité pour maintenir l'ordre. Plutôt que de tout recalculer (coûteux), nous employons une stratégie paresseuse :
       - le sommet extrait du tas voit son score recalculé
       - si ce score reste meilleur ou équivalent au prochain meilleur candidat valide, il est contracté
       - sinon il est réinséré avec sa nouvelle priorité.

@@ -96,7 +96,7 @@ void afficher_infos_noeud(csr_graph_t *graphe, int id_noeud) {
     }
 }
 
-// fnction pour charger noeuds.txt
+// fnction pour charger noeuds.csv
 coordonnees_t* charger_coordonnees(const char *filename, int nb_noeuds) {
     FILE *file = fopen(filename, "r");
     if (!file) {
