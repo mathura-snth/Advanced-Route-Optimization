@@ -1,5 +1,7 @@
 #ifndef GRAPH_H
 #define GRAPH_H
+#include <float.h>
+#define INFINI DBL_MAX
 #include <stdio.h>
 
 // structure de données

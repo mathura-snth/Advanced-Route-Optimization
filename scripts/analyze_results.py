@@ -7,7 +7,7 @@ def analyze_plot(filename, label, is_memory=False):
         print(f"Fichier introuvable: {filename}")
         return None
         
-    data = pd.read_csv(filename, sep=' ', header=None, names=['idx', 'val', 'amortized'])
+    data = pd.read_csv(filename, sep=',', header=None, names=['idx', 'val', 'amortized'])
     values = data['val']
     
     if is_memory:
@@ -73,7 +73,7 @@ if mem_stats:
 pre_file = 'results/pretraitements_costs.txt'
 
 if os.path.exists(pre_file):
-    df_pre = pd.read_csv(pre_file, sep=' ', header=None, names=['Algo', 'Temps (secondes)', 'Surcoût RAM (Mo)'])
+    df_pre = pd.read_csv(pre_file, sep=',', header=None, names=['Algo', 'Temps (secondes)', 'Surcoût RAM (Mo)'])
     print("\nCOÛT DU PRÉTRAITEMENT")
     print(df_pre.to_string(index=False))
 else:

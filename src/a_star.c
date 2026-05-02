@@ -33,7 +33,7 @@ resultat_t a_star(csr_graph_t *graphe, coordonnees_t *coords, int depart, int ar
     int *predecesseurs = malloc(graphe->nb_noeuds * sizeof(int));
 
     for (int i = 0; i < graphe->nb_noeuds; i++) {
-        distances[i] = DBL_MAX; 
+        distances[i] = INFINI; 
         predecesseurs[i] = -1;      
     }
     // temps de l'algo
@@ -100,7 +100,7 @@ resultat_t a_star(csr_graph_t *graphe, coordonnees_t *coords, int depart, int ar
     }
     // fin de chrono
     clock_gettime(clk_id, &after);
-    double temps_sec = (after.tv_sec - before.tv_sec) + (after.tv_nsec - before.tv_nsec) / 1e9;
+    double temps_sec = (after.tv_sec - before.tv_sec) + (after.tv_nsec - before.tv_nsec) / 1000000000.0;
     // si toujjours infini alors que tas vidé, alors les 2 points ne sont pas connectés dans le graphe
 
     resultat_t res = {distances[arrivee], nb_extractions, nb_relaxations, temps_sec};

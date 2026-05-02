@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <float.h> // Pour DBL_MAX (l'infini)
+#include <float.h> // Pour INFINI (l'infini)
 #include <time.h>  // Pour clock_gettime
 #include "algos.h"
 #include "tas.h"
@@ -14,7 +14,7 @@ resultat_t dijkstra(csr_graph_t *graphe, int depart, int arrivee) {
     int *predecesseurs = malloc(graphe->nb_noeuds * sizeof(int));
 
     for (int i = 0; i < graphe->nb_noeuds; i++) {
-        distances[i] = DBL_MAX; 
+        distances[i] = INFINI; 
         predecesseurs[i] = -1;      
     }
     // temps de l'algo
@@ -67,7 +67,7 @@ resultat_t dijkstra(csr_graph_t *graphe, int depart, int arrivee) {
     }
     // fin de chrono
     clock_gettime(clk_id, &after);
-    double temps_sec = (after.tv_sec - before.tv_sec) + (after.tv_nsec - before.tv_nsec) / 1e9;
+    double temps_sec = (after.tv_sec - before.tv_sec) + (after.tv_nsec - before.tv_nsec) / 1000000000.0;
 
     free(distances);
     free(predecesseurs);

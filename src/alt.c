@@ -18,7 +18,7 @@ Donc une fois qu'on a les tableaux de distances, on peut répondre à des millie
 double* dijkstra_pour_landmark(csr_graph_t *graphe, int landmark) {
     double *distances = malloc(graphe->nb_noeuds * sizeof(double));
     for (int i = 0; i < graphe->nb_noeuds; i++) {
-        distances[i] = DBL_MAX;
+        distances[i] = INFINI;
     }
     tas_binaire_t *tas = tas_create(graphe->nb_aretes);
     distances[landmark] = 0.0;
@@ -61,7 +61,7 @@ double heuristique_alt(int u, int arrivee, int nb_landmarks, double **distances_
         double dist_arrivee_L = distances_landmarks[i][arrivee];
 
         // on applique ineg triangulaire si les deux noeuds atteignent landmark
-        if (dist_u_L != DBL_MAX && dist_arrivee_L != DBL_MAX) {
+        if (dist_u_L != INFINI && dist_arrivee_L != INFINI) {
             double h = fabs(dist_u_L - dist_arrivee_L);
             // val max des landmarks pour augmenter précision
             if (h > max_h) {
@@ -77,7 +77,7 @@ resultat_t alt(csr_graph_t *graphe, int depart, int arrivee, int nb_landmarks, d
     int *predecesseurs = malloc(graphe->nb_noeuds * sizeof(int));
 
     for (int i = 0; i < graphe->nb_noeuds; i++) {
-        distances[i] = DBL_MAX; 
+        distances[i] = INFINI; 
         predecesseurs[i] = -1;      
     }
 
@@ -130,7 +130,7 @@ resultat_t alt(csr_graph_t *graphe, int depart, int arrivee, int nb_landmarks, d
     }
 
     clock_gettime(clk_id, &after);
-    double temps_sec = (after.tv_sec - before.tv_sec) + (after.tv_nsec - before.tv_nsec) / 1e9;
+    double temps_sec = (after.tv_sec - before.tv_sec) + (after.tv_nsec - before.tv_nsec) / 1000000000.0;
 
     resultat_t res = {distances[arrivee], nb_extractions, nb_relaxations, temps_sec};
     free(distances);

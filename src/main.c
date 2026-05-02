@@ -53,7 +53,7 @@ void run_evaluation(csr_graph_t *graphe, coordonnees_t *coords, ch_graph_t *ch, 
         resultat_t res_d = dijkstra(graphe, s, t);
         
         // Si aucun chemin n'existe, on ignore cette paire
-        if (res_d.distance == DBL_MAX) continue; 
+        if (res_d.distance == INFINI) continue; 
 
         resultat_t res_a = a_star(graphe, coords, s, t);
         resultat_t res_l = alt(graphe, s, t, nb_landmarks, distances_landmarks);
@@ -128,11 +128,11 @@ void run_evaluation(csr_graph_t *graphe, coordonnees_t *coords, ch_graph_t *ch, 
 
 int main() {
     printf("Chargement du graphe CSR\n");
-    csr_graph_t *graphe = load_graph("data/aretes.txt");
+    csr_graph_t *graphe = load_graph("data/aretes.csv");
     if (!graphe) return EXIT_FAILURE;
 
     printf("Chargement des coordonnees\n");
-    coordonnees_t *coords = charger_coordonnees("data/noeuds.txt", graphe->nb_noeuds);
+    coordonnees_t *coords = charger_coordonnees("data/noeuds.csv", graphe->nb_noeuds);
     if (!coords) { free_graph(graphe); return EXIT_FAILURE; }
 
     int nb_landmarks = 10;
@@ -149,18 +149,18 @@ int main() {
     
     clock_gettime(CLOCK_REALTIME, &pre_after);
     //pour alt : mult du nombre de landmarks par la taille du tableau de distances
-    double temps_pre_alt = (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1e9;
+    double temps_pre_alt = (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1000000000.0;
     double mem_pre_alt = (nb_landmarks * graphe->nb_noeuds * sizeof(double)) / (1024.0 * 1024.0);
-    printf("Pre-traitement ALT termine en %.2f secondes.\n", (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1e9);
+    printf("Pre-traitement ALT termine en %.2f secondes.\n", (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1000000000.0);
 
     printf("\nCH : pretraitement Contraction Hierarchies\n");
     clock_gettime(CLOCK_REALTIME, &pre_before);
     ch_graph_t *ch = pretraitement_ch(graphe); 
     clock_gettime(CLOCK_REALTIME, &pre_after);
     // pour ch : tableaux d'arêtes + tableaux de noeuds
-    double temps_pre_ch = (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1e9;
+    double temps_pre_ch = (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1000000000.0;
     double mem_pre_ch = (2 * (ch->up_first_arete[ch->num_noeuds] + 1) * (sizeof(int) + sizeof(double)) + (ch->num_noeuds * sizeof(int))) / (1024.0 * 1024.0);
-    printf("Pre-traitement CH termine en %.2f secondes.\n", (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1e9);
+    printf("Pre-traitement CH termine en %.2f secondes.\n", (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1000000000.0);
     // sauvegarde des pré-traitement
     FILE *f_pre = fopen("results/pretraitements_costs.txt", "w");
     if(f_pre) {

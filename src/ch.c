@@ -71,7 +71,7 @@ int traiter_noeud(int v, voisin_t **adj, ch_graph_t *ch, double *dist, int *visi
             visites[nb_visites++] = u;
             tas_ajout(tas, u, 0.0, 0.0); //insertion de u dans file de priorité
 
-            double cout_sans_v = DBL_MAX; // on part du principe que w inatteignable par u
+            double cout_sans_v = INFINI; // on part du principe que w inatteignable par u
 
             while (tas->size > 0) {
                 element_tas_t courant = tas_extraire_min(tas);
@@ -91,7 +91,7 @@ int traiter_noeud(int v, voisin_t **adj, ch_graph_t *ch, double *dist, int *visi
                     if (voisin == v) continue; // v est le noeud interdit
                     if (ch->rank[voisin] != ch->num_noeuds) continue; // Uniquement non contractés
                     
-                    if (dist[voisin] == DBL_MAX) { // À la fin de cette recherche, au lieu de faire une boucle sur TOUS LES noeuds pour remettre le tableau dist à l'infini on ne remettra à l'infini que la poignée de noeuds notés dans visites
+                    if (dist[voisin] == INFINI) { // À la fin de cette recherche, au lieu de faire une boucle sur TOUS LES noeuds pour remettre le tableau dist à l'infini on ne remettra à l'infini que la poignée de noeuds notés dans visites
                         visites[nb_visites++] = voisin;
                     }
                     // relaxation -màj
@@ -104,7 +104,7 @@ int traiter_noeud(int v, voisin_t **adj, ch_graph_t *ch, double *dist, int *visi
             
             // nettoyage tas et distances
             while (tas->size > 0) tas_extraire_min(tas);
-            for (int k = 0; k < nb_visites; k++) dist[visites[k]] = DBL_MAX;
+            for (int k = 0; k < nb_visites; k++) dist[visites[k]] = INFINI;
 
             // ajouter raccourci si nécessaire
             if (cout_via_v < cout_sans_v) {
@@ -147,7 +147,7 @@ ch_graph_t* pretraitement_ch(csr_graph_t *graphe) {
 
     // buffers pour Dijkstra témoin - on le fait une seule fois en global et en les passant en para on les recycle à l'infini
     double *dist = malloc(n * sizeof(double));
-    for (int i = 0; i < n; i++) dist[i] = DBL_MAX;
+    for (int i = 0; i < n; i++) dist[i] = INFINI;
 
     // tas_temoins pour trouver le chemin le plus court sur la carte (trier des distances)
     // tas_scores pour trier l'importance des noeuds (arete diff)
@@ -281,8 +281,8 @@ resultat_t ch_search(ch_graph_t *ch, int depart, int arrivee) {
     double *dist_retour = malloc(n * sizeof(double));
 
     for (int i = 0; i < n; i++) {
-        dist_aller[i] = DBL_MAX;
-        dist_retour[i] = DBL_MAX;
+        dist_aller[i] = INFINI;
+        dist_retour[i] = INFINI;
     }
 
     tas_binaire_t *tas_aller = tas_create(ch->up_first_arete[n] + 1); // on donne pour taille le nb d'arete du graphe ascendant filtré
@@ -294,7 +294,7 @@ resultat_t ch_search(ch_graph_t *ch, int depart, int arrivee) {
     dist_retour[arrivee] = 0.0;
     tas_ajout(tas_retour, arrivee, 0.0, 0.0);
 
-    double meilleur = DBL_MAX; // dès que aller et retour se croisent sur un noeud on ajoute leur somme dans meilleur
+    double meilleur = INFINI; // dès que aller et retour se croisent sur un noeud on ajoute leur somme dans meilleur
     long long nb_extractions = 0;
     long long nb_relaxations = 0;
 
@@ -307,14 +307,14 @@ resultat_t ch_search(ch_graph_t *ch, int depart, int arrivee) {
         if (tas_aller->size > 0) {
             min_aller = tas_aller->data[0].cout_reel;
         } else {
-            min_aller = DBL_MAX; // si le tas est vide => il n'y a plus aucun noeud à explorer de ce côté-là
+            min_aller = INFINI; // si le tas est vide => il n'y a plus aucun noeud à explorer de ce côté-là
         }
 
         double min_retour;
         if (tas_retour->size > 0) {
             min_retour = tas_retour->data[0].cout_reel;
         } else {
-            min_retour = DBL_MAX;
+            min_retour = INFINI;
         }
         // Important : meilleur contient la distance du meilleur chemin complet qu'on a trouvé jusqu'ici
         // si prochain noeud le plus proche depuis le départ ET prochain noeud le plus proche depuis l'arrivée sont à distance sup (ou =) au chemin déjà trouvé => impossible de trouver mieux meme en continuant donc break
@@ -328,7 +328,7 @@ resultat_t ch_search(ch_graph_t *ch, int depart, int arrivee) {
             nb_extractions++;
 
             // croisement
-            if (dist_retour[courant.sommet] != DBL_MAX) { // si diff de l'infini alors retour est passé par là => croisement
+            if (dist_retour[courant.sommet] != INFINI) { // si diff de l'infini alors retour est passé par là => croisement
                 double total = dist_aller[courant.sommet] + dist_retour[courant.sommet];
                 if (total < meilleur) {
                     meilleur = total;
@@ -354,7 +354,7 @@ resultat_t ch_search(ch_graph_t *ch, int depart, int arrivee) {
             if (courant.cout_reel > dist_retour[u]) continue;
             nb_extractions++;
 
-            if (dist_aller[u] != DBL_MAX) {
+            if (dist_aller[u] != INFINI) {
                 double total = dist_aller[u] + dist_retour[u];
                 if (total < meilleur) meilleur = total;
             }
@@ -375,7 +375,7 @@ resultat_t ch_search(ch_graph_t *ch, int depart, int arrivee) {
     clock_gettime(CLOCK_REALTIME, &fin);
 
     double temps = (fin.tv_sec - debut.tv_sec)
-                 + (fin.tv_nsec - debut.tv_nsec) / 1e9;
+                 + (fin.tv_nsec - debut.tv_nsec) / 1000000000.0;
 
     resultat_t res = {meilleur, nb_extractions, nb_relaxations, temps};
 

@@ -16,9 +16,13 @@ csr_graph_t* load_graph(const char *filename) {
 
     // etape 1 : lecture de tout le fichier une 1ère fois pour trouver id max = (N)
     // et compter le nombre d'arêtes total.
-    while (fscanf(file, "%d %d %lf", &u, &v, &w) == 3) {
-        if (u > max_noeud_id) max_noeud_id = u;
-        if (v > max_noeud_id) max_noeud_id = v;
+    while (fscanf(file, "%d,%d,%lf", &u, &v, &w) == 3) {
+        if (u > max_noeud_id) {
+            max_noeud_id = u;
+        }
+        if (v > max_noeud_id) {
+            max_noeud_id = v;
+        }
         arete_count += 2; // pour que Dijkstra aille dans les deux sens on considère le graphe comme non orienté donc bidirectionnel donc 
     }
     int nb_noeuds = max_noeud_id + 1;
@@ -34,7 +38,7 @@ csr_graph_t* load_graph(const char *filename) {
 
     // etape 2 : on revient au debut du fichier, pour compte le nombre de voisins par noeud (pour chaque (u,v) -> +1 pour u et pour v)
     rewind(file);
-    while (fscanf(file, "%d %d %lf", &u, &v, &w) == 3) {
+    while (fscanf(file, "%d,%d,%lf", &u, &v, &w) == 3) {
         graphe->first_arete[u]++;
         graphe->first_arete[v]++; 
     }
@@ -57,7 +61,7 @@ csr_graph_t* load_graph(const char *filename) {
     }
 
     rewind(file);
-    while (fscanf(file, "%d %d %lf", &u, &v, &w) == 3) {
+    while (fscanf(file, "%d,%d,%lf", &u, &v, &w) == 3) {
         // Sens u -> v
         int index_u = current_offset[u]++;
         graphe->aretes[index_u].cible = v;
@@ -92,7 +96,7 @@ void afficher_infos_noeud(csr_graph_t *graphe, int id_noeud) {
     }
 }
 
-// Fonction pour charger noeuds.txt
+// fnction pour charger noeuds.txt
 coordonnees_t* charger_coordonnees(const char *filename, int nb_noeuds) {
     FILE *file = fopen(filename, "r");
     if (!file) {
@@ -104,8 +108,8 @@ coordonnees_t* charger_coordonnees(const char *filename, int nb_noeuds) {
     int id;
     double lat, lon;
 
-    // Chargement des coordonnees
-    while (fscanf(file, "%d %lf %lf", &id, &lat, &lon) == 3) {
+    // chargement des coordonnees
+    while (fscanf(file, "%d,%lf,%lf", &id, &lat, &lon) == 3) {
         if (id < nb_noeuds) {
             coords[id].lat = lat;
             coords[id].lon = lon;
