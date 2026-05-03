@@ -33,7 +33,7 @@ SDA_Projet_Maps/
 ├── compilation/ 
 │
 ├── resultats/       # Graphiques de performances générés
-│   └── comparison_graph_gnuplot.png, extractions_graph
+│   └── comparison_graph_gnuplot.png, extractions_graph, relaxations_graph, synthese
 │
 ├── scripts/       # Scripts Python d'analyse et de tracé
 │   └── analyze_resultats.py, extract.py, generate_graphs.py
