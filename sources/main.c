@@ -140,6 +140,20 @@ void run_evaluation(csr_graph_t *graphe, coordonnees_t *coords, ch_graph_t *ch, 
     printf("ALT       | %16.4Lf | %16.0Lf |%16.4Lf| %16.4Lf | %8.2Lf\n", get_average_cost(t_alt)*1000, get_average_cost(e_alt),get_average_cost(r_alt), get_standard_deviation(t_alt)*1000, get_average_cost(m_alt)/1024.0);
     printf("CH        | %16.4Lf | %16.0Lf |%16.4Lf| %16.4Lf | %8.2Lf\n", get_average_cost(t_ch)*1000, get_average_cost(e_ch),get_average_cost(r_ch), get_standard_deviation(t_ch)*1000, get_average_cost(m_ch)/1024.0);
     
+    // sauvegarde dans resultats/synthese.txt
+    FILE *f_synthese = fopen("resultats/synthese.txt", "w");
+    if (f_synthese) {
+        fprintf(f_synthese, "BILAN DES %d REQUETES\n", success_total);
+        fprintf(f_synthese, "=======================================================================================================================\n");
+        fprintf(f_synthese, "Algo      | Temps Moyen (ms) | Extractions Moy. | Relaxations Moy. | Ecart-type Temps | RAM (Mo)\n");
+        fprintf(f_synthese, "-----------------------------------------------------------------------------------------------------------------------\n");
+        fprintf(f_synthese, "Dijkstra  | %16.4Lf | %16.4Lf | %16.4Lf | %16.4Lf | %8.2Lf\n", get_average_cost(t_dijkstra)*1000, get_average_cost(e_dijkstra), get_average_cost(r_dijkstra), get_standard_deviation(t_dijkstra)*1000, get_average_cost(m_dijkstra)/1024.0);
+        fprintf(f_synthese, "A*        | %16.4Lf | %16.0Lf | %16.4Lf | %16.4Lf | %8.2Lf\n", get_average_cost(t_astar)*1000, get_average_cost(e_astar), get_average_cost(r_astar), get_standard_deviation(t_astar)*1000, get_average_cost(m_astar)/1024.0);
+        fprintf(f_synthese, "ALT       | %16.4Lf | %16.0Lf | %16.4Lf | %16.4Lf | %8.2Lf\n", get_average_cost(t_alt)*1000, get_average_cost(e_alt), get_average_cost(r_alt), get_standard_deviation(t_alt)*1000, get_average_cost(m_alt)/1024.0);
+        fprintf(f_synthese, "CH        | %16.4Lf | %16.0Lf | %16.4Lf | %16.4Lf | %8.2Lf\n", get_average_cost(t_ch)*1000, get_average_cost(e_ch), get_average_cost(r_ch), get_standard_deviation(t_ch)*1000, get_average_cost(m_ch)/1024.0);
+        fclose(f_synthese);
+        printf("\nTableau sauvegarde dans resultats/synthese.txt\n");
+    }
     analyzer_destroy(t_dijkstra);
     analyzer_destroy(e_dijkstra);
     analyzer_destroy(m_dijkstra);
