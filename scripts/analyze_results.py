@@ -48,8 +48,12 @@ for path, name in algos_time:
 
 if time_stats:
     df_time = pd.DataFrame(time_stats)
-    print("\nSTATISTIQUES DE TEMPS")
+    print("\nstatistique des temps")
     print(df_time.to_string(index=False))
+    with open('resultats/synthese_temps.txt', 'w') as f:
+        f.write("STATISTIQUES DE TEMPS\n")
+        f.write(df_time.to_string(index=False))
+        f.write("\n")
 
 # PARTIE 2 : ANALYSE DE LA MÉMOIRE (RAM)
 algos_memory = [
@@ -66,16 +70,24 @@ for path, name in algos_memory:
 
 if mem_stats:
     df_mem = pd.DataFrame(mem_stats)
-    print("\nSTATISTIQUES DE MÉMOIRE")
+    print("\nles stat pour la mémoire :")
     print(df_mem.to_string(index=False))
+    with open('resultats/synthese_memoire.txt', 'w') as f:
+        f.write("STATISTIQUES DE MEMOIRE\n")
+        f.write(df_mem.to_string(index=False))
+        f.write("\n")
 
 # PARTIE 3 : ANALYSE DES COÛTS DE PRÉTRAITEMENT
 pre_file = 'resultats/pretraitements_costs.txt'
 
 if os.path.exists(pre_file):
     df_pre = pd.read_csv(pre_file, sep=' ', header=None, names=['Algo', 'Temps (secondes)', 'Surcoût RAM (Mo)'])
-    print("\nCOÛT DU PRÉTRAITEMENT")
+    print("\nCoût du prétraitement")
     print(df_pre.to_string(index=False))
+    with open('resultats/synthese_pretraitement.txt', 'w') as f:
+        f.write("COUT DU PRETRAITEMENT\n")
+        f.write(df_pre.to_string(index=False))
+        f.write("\n")
 else:
     print(f"\nFichier de prétraitement introuvable: {pre_file}. Relancez le programme C.")
     

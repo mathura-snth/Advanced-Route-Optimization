@@ -1,0 +1,4 @@
+STATISTIQUES DE MEMOIRE
+                   Algo  RAM Moyenne (Mo)  RAM Max (Mo)
+    Dijkstra / A* / ALT         90.783531     90.783531
+Contraction Hierarchies        173.358688    173.358688
