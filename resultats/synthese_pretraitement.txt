@@ -1,4 +1,4 @@
 COUT DU PRETRAITEMENT
 Algo  Temps (secondes)  Surcoût RAM (Mo)
- ALT          2.513439        115.970612
-  CH        128.828333         80.880814
+ ALT          2.584765        115.970612
+  CH        133.674868         80.880814
