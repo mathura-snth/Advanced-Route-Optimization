@@ -20,7 +20,7 @@ make run
 Elle compile les sources du dossier `sources/`, lance le moteur, affiche les tableaux récapitulatifs dans le terminal et génère les graphiques dans `resultats/`.
 
 ### Arborescence du Projet
-Afin de maintenir un code propre et modulaire, le dépôt Git a été organisé de la manière suivante :
+Le dépôt Git a été organisé de la manière suivante :
 ```text
 SDA_Projet_Maps/
 ├── doc/           # Documentation et rendu final
