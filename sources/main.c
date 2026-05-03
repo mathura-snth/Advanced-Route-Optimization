@@ -116,22 +116,22 @@ void run_evaluation(csr_graph_t *graphe, coordonnees_t *coords, ch_graph_t *ch, 
     }
 
     // Sauvegarde (voir TP1)
-    save_values(t_dijkstra, "results/time_dijkstra.plot");
-    save_values(t_astar,    "results/time_astar.plot");
-    save_values(t_alt,      "results/time_alt.plot");
-    save_values(t_ch,       "results/time_ch.plot");
-    save_values(m_dijkstra, "results/memory_dijkstra.plot");
-    save_values(m_ch,       "results/memory_ch.plot");
+    save_values(t_dijkstra, "resultats/time_dijkstra.plot");
+    save_values(t_astar,    "resultats/time_astar.plot");
+    save_values(t_alt,      "resultats/time_alt.plot");
+    save_values(t_ch,       "resultats/time_ch.plot");
+    save_values(m_dijkstra, "resultats/memory_dijkstra.plot");
+    save_values(m_ch,       "resultats/memory_ch.plot");
     // pour afficher le nombre de noeuds visités
-    save_values(e_dijkstra, "results/extract_dijkstra.plot");
-    save_values(e_astar,    "results/extract_astar.plot");
-    save_values(e_alt,      "results/extract_alt.plot");
-    save_values(e_ch,       "results/extract_ch.plot");
+    save_values(e_dijkstra, "resultats/extract_dijkstra.plot");
+    save_values(e_astar,    "resultats/extract_astar.plot");
+    save_values(e_alt,      "resultats/extract_alt.plot");
+    save_values(e_ch,       "resultats/extract_ch.plot");
     // relaxatins
-    save_values(r_dijkstra, "results/relaxations_dijkstra.plot");
-    save_values(r_astar,    "results/relaxations_astar.plot");
-    save_values(r_alt,      "results/relaxations_alt.plot");
-    save_values(r_ch,       "results/relaxations_ch.plot");
+    save_values(r_dijkstra, "resultats/relaxations_dijkstra.plot");
+    save_values(r_astar,    "resultats/relaxations_astar.plot");
+    save_values(r_alt,      "resultats/relaxations_alt.plot");
+    save_values(r_ch,       "resultats/relaxations_ch.plot");
 
     printf("\n bilan des %d requetes ---\n", success_total);
     printf("Algo      | Temps Moyen (ms) | Extractions Moy.| Relaxations Moy.| Ecart-type Temps | RAM (Mo)\n");
@@ -156,11 +156,11 @@ void run_evaluation(csr_graph_t *graphe, coordonnees_t *coords, ch_graph_t *ch, 
 
 int main() {
     printf("Chargement du graphe CSR\n");
-    csr_graph_t *graphe = load_graph("data/aretes.csv");
+    csr_graph_t *graphe = load_graph("donnees/aretes.csv");
     if (!graphe) return EXIT_FAILURE;
 
     printf("Chargement des coordonnees\n");
-    coordonnees_t *coords = charger_coordonnees("data/noeuds.csv", graphe->nb_noeuds);
+    coordonnees_t *coords = charger_coordonnees("donnees/noeuds.csv", graphe->nb_noeuds);
     if (!coords) {
         free_graph(graphe);
         return EXIT_FAILURE;
@@ -198,7 +198,7 @@ int main() {
     double mem_pre_ch = (2 * (ch->up_first_arete[ch->num_noeuds] + 1) * (sizeof(int) + sizeof(double)) + (ch->num_noeuds * sizeof(int))) / (1024.0 * 1024.0);
     printf("Pre-traitement CH termine en %.2f secondes.\n", (pre_after.tv_sec - pre_before.tv_sec) + (pre_after.tv_nsec - pre_before.tv_nsec) / 1000000000.0);
     // sauvegarde des pré-traitement
-    FILE *f_pre = fopen("results/pretraitements_costs.txt", "w");
+    FILE *f_pre = fopen("resultats/pretraitements_costs.txt", "w");
     if(f_pre) {
         fprintf(f_pre, "ALT %lf %lf\n", temps_pre_alt, mem_pre_alt);
         fprintf(f_pre, "CH %lf %lf\n", temps_pre_ch, mem_pre_ch);

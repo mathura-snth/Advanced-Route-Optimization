@@ -17,7 +17,7 @@ typedef struct {
 } element_tas_t;
 
 typedef struct {
-    element_tas_t *data; // tableau dynamique contenant les paires (sommet, dist)
+    element_tas_t *donnees; // tableau dynamique contenant les paires (sommet, dist)
     int size; // nb d'éléments actuellement dans le tas
     int capacity; // taille max tableau
 } tas_binaire_t;

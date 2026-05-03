@@ -3,6 +3,49 @@
 Ce projet vise à construire un moteur de calcul d'itinéraires sur des réseaux routiers.
 L'objectif est d'implémenter et de comparer plusieurs algorithmes de plus court chemin (Dijkstra, A*, ALT, Contraction Hierarchies) en optimisant la représentation en mémoire et les temps de requête.
 
+
+---
+## Compilation et Exécution
+
+Prérequis :
+- **Python 3** avec `pandas` et `numpy` : `pip install pandas numpy`
+- **Gnuplot** : `brew install gnuplot`
+
+Une seule commande suffit :
+
+```bash
+make run
+```
+
+Elle compile les sources du dossier `sources/`, lance le moteur, affiche les tableaux récapitulatifs dans le terminal et génère les graphiques dans `resultats/`.
+
+### Arborescence du Projet
+Afin de maintenir un code propre et modulaire, le dépôt Git a été organisé de la manière suivante :
+```text
+SDA_Projet_Maps/
+├── doc/           # Documentation et rendu final
+│   ├── Rapport - Route Planning.pdf
+│   └── enonce_projet_sda.pdf
+│
+├── en-tetes/       # Fichiers d'en-tête (.h)
+│   └── algos.h, analyzer.h, graph.h, tas.h
+│
+├── compilation/ 
+│
+├── resultats/       # Graphiques de performances générés
+│   └── comparison_graph_gnuplot.png, extractions_graph
+│
+├── scripts/       # Scripts Python d'analyse et de tracé
+│   └── analyze_resultats.py, extract.py, generate_graphs.py
+│
+├── sources/       # Code source C (.c)
+│   └── a_star.c, alt.c, ch.c, dijkstra.c, graph.c, main.c, tas.c, analyzer.c
+│
+├── .gitignore     # Exclusion des fichiers lourds ou compilés (ex: donnees/, compilation/)
+├── Makefile       # Règles de compilation automatisée
+└── README.md      # Ce fichier
+```
+
 ---
 ## 1. Extraction des Données (Python)
 
@@ -223,7 +266,7 @@ Les deux recherches utilisent le graphe ascendant, possible car les raccourcis s
 
 make
 ./bin/moteur_gps
-python3 scripts/analyze_results.py
+python3 scripts/analyze_resultats.py
 
 ---
 ---
@@ -251,41 +294,3 @@ Pour chaque requête on mesure :
 Le fichier `analyzer.c` du TP1 a été adapté pour générer et fermer proprement (`fclose`) les fichiers puis on utilise les données avec :
 - **Gnuplot :** Un script `.p` permet de générer les courbes avec une échelle logarithmique pour visualiser l'écart de performance énorme entre Dijkstra et CH.
 - **Python / Pandas :** pour calculer des statistiques globales, notamment le 95e percentile (P95)
-
----
-## 8. Compilation et Exécution
-
-Avant de lancer le projet il faut avoir :
-  - **Python 3 :** avec les bibliothèques (`pandas` et `numpy`).
-  - **Gnuplot :** Pour la génération des graphiques `brew install gnuplot`.
-
-
-1. **Compilation** : lancer `make` à la racine du projet pour compiler les sources du dossier `src/` et créer l'exécutable
-2. **Exécution** (le moteur) : lancer `./bin/moteur_gps`.
-3. **Génération des statistiques** (python) : lancer `python3 scripts/analyze_results.py` pour calculer et afficher dans le terminal les tableaux récapitulatifs complets.
-4. **Génération des graphiques visuels** (Gnuplot) : lancer `gnuplot scripts/generate_graphs.p` pour transformer les données en courbes **logarithmiques** (Temps de réponse, Nœuds explorés, Mémoire allouée). Les images .png apparaîtront dans le dossier results/.
-
-### Arborescence du Projet
-Afin de maintenir un code propre et modulaire, le dépôt Git a été organisé de la manière suivante :
-```text
-SDA_Projet_Maps/
-├── doc/           # Documentation et rendu final
-│   ├── Rapport - Route Planning.pdf
-│   └── enonce_projet_sda.pdf
-│
-├── include/       # Fichiers d'en-tête (.h)
-│   └── algos.h, analyzer.h, graph.h, tas.h
-│
-├── results/       # Graphiques de performances générés
-│   └── comparison_graph_gnuplot.png, extractions_graph
-│
-├── scripts/       # Scripts Python d'analyse et de tracé
-│   └── analyze_results.py, extract.py, generate_graphs.py
-│
-├── src/           # Code source C (.c)
-│   └── a_star.c, alt.c, ch.c, dijkstra.c, graph.c, main.c, tas.c, analyzer.c
-│
-├── .gitignore     # Exclusion des fichiers lourds ou compilés (ex: data/, build/)
-├── Makefile       # Règles de compilation automatisée
-└── README.md      # Ce fichier
-```

@@ -1,5 +1,4 @@
-build/
-bin/
+compilation/
 
 *.csv
 *.txt

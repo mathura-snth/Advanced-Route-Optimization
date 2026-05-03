@@ -305,14 +305,14 @@ resultat_t ch_search(ch_graph_t *ch, int depart, int arrivee) {
     while (tas_aller->size > 0 || tas_retour->size > 0) {
         double min_aller;
         if (tas_aller->size > 0) {
-            min_aller = tas_aller->data[0].cout_reel;
+            min_aller = tas_aller->donnees[0].cout_reel;
         } else {
             min_aller = INFINI; // si le tas est vide => il n'y a plus aucun noeud à explorer de ce côté-là
         }
 
         double min_retour;
         if (tas_retour->size > 0) {
-            min_retour = tas_retour->data[0].cout_reel;
+            min_retour = tas_retour->donnees[0].cout_reel;
         } else {
             min_retour = INFINI;
         }

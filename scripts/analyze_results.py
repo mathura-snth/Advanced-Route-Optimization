@@ -7,8 +7,8 @@ def analyze_plot(filename, label, is_memory=False):
         print(f"Fichier introuvable: {filename}")
         return None
         
-    data = pd.read_csv(filename, sep=',', header=None, names=['idx', 'val', 'amortized'])
-    values = data['val']
+    donnees = pd.read_csv(filename, sep=' ', header=None, names=['idx', 'val', 'amortized'])
+    values = donnees['val']
     
     if is_memory:
         # La mémoire est enregistrée en octets, on la convertit en Mégaoctets (Mo)
@@ -33,10 +33,10 @@ def analyze_plot(filename, label, is_memory=False):
 
 # PARTIE 1 : ANALYSE DES TEMPS DE RÉPONSE
 algos_time = [
-    ('results/time_dijkstra.plot', 'Dijkstra'),
-    ('results/time_astar.plot', 'A*'),
-    ('results/time_alt.plot', 'ALT'),
-    ('results/time_ch.plot', 'CH')
+    ('resultats/time_dijkstra.plot', 'Dijkstra'),
+    ('resultats/time_astar.plot', 'A*'),
+    ('resultats/time_alt.plot', 'ALT'),
+    ('resultats/time_ch.plot', 'CH')
 ]
 
 time_stats = []
@@ -53,8 +53,8 @@ if time_stats:
 
 # PARTIE 2 : ANALYSE DE LA MÉMOIRE (RAM)
 algos_memory = [
-    ('results/memory_dijkstra.plot', 'Dijkstra / A* / ALT'),
-    ('results/memory_ch.plot', 'Contraction Hierarchies')
+    ('resultats/memory_dijkstra.plot', 'Dijkstra / A* / ALT'),
+    ('resultats/memory_ch.plot', 'Contraction Hierarchies')
 ]
 
 mem_stats = []
@@ -70,10 +70,10 @@ if mem_stats:
     print(df_mem.to_string(index=False))
 
 # PARTIE 3 : ANALYSE DES COÛTS DE PRÉTRAITEMENT
-pre_file = 'results/pretraitements_costs.txt'
+pre_file = 'resultats/pretraitements_costs.txt'
 
 if os.path.exists(pre_file):
-    df_pre = pd.read_csv(pre_file, sep=',', header=None, names=['Algo', 'Temps (secondes)', 'Surcoût RAM (Mo)'])
+    df_pre = pd.read_csv(pre_file, sep=' ', header=None, names=['Algo', 'Temps (secondes)', 'Surcoût RAM (Mo)'])
     print("\nCOÛT DU PRÉTRAITEMENT")
     print(df_pre.to_string(index=False))
 else:

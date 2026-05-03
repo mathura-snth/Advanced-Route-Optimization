@@ -43,7 +43,7 @@ class MapHandler(osmium.SimpleHandler):
 
 print("on charge et lit le fichier .osm.pbf")
 handler = MapHandler()
-handler.apply_file("data/ile-de-france-260403.osm.pbf")
+handler.apply_file("donnees/ile-de-france-260403.osm.pbf")
 
 print(f"nb routes trouvées = {len(handler.aretes)}.")
 aretes_df = pd.DataFrame(handler.aretes, columns=['u', 'v', 'length'])
@@ -57,9 +57,9 @@ aretes_df['u_mapped'] = aretes_df['u'].map(mapping)
 aretes_df['v_mapped'] = aretes_df['v'].map(mapping)
 
 print("Sauvegarde des fichiers")
-aretes_df[['u_mapped', 'v_mapped', 'length']].to_csv("data/aretes.csv", sep=',', index=False, header=False)
+aretes_df[['u_mapped', 'v_mapped', 'length']].to_csv("donnees/aretes.csv", sep=',', index=False, header=False)
 
 # Fichier des noeuds
-noeuds_data = [(mapping[n_id], handler.noeuds[n_id][0], handler.noeuds[n_id][1]) for n_id in unique_noeuds]
-noeuds_df = pd.DataFrame(noeuds_data, columns=['id_mapped', 'lat', 'lon']).sort_values('id_mapped')
-noeuds_df.to_csv("data/noeuds.csv", sep=',', index=False, header=False)
+noeuds_donnees = [(mapping[n_id], handler.noeuds[n_id][0], handler.noeuds[n_id][1]) for n_id in unique_noeuds]
+noeuds_df = pd.DataFrame(noeuds_donnees, columns=['id_mapped', 'lat', 'lon']).sort_values('id_mapped')
+noeuds_df.to_csv("donnees/noeuds.csv", sep=',', index=False, header=False)
