@@ -1,5 +1,6 @@
 compilation/
-
+*.txt
+*.png
 *.csv
 *.pbf
 *.osm
