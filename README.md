@@ -19,13 +19,22 @@ make run
 
 Elle compile les sources du dossier `sources/`, lance le moteur, affiche les tableaux récapitulatifs dans le terminal et génère les graphiques dans `resultats/`.
 
+Les données du projet étant trop volumineuses pour GitHub, elles sont hébergées sur Google Drive. Pour exécuter le code et reproduire les résultats, veuillez suivre ces étapes :
+
+1. Téléchargez l'archive en cliquant sur ce lien : [https://drive.google.com/drive/folders/19ti2-82yTjm8DlCH-d22emAAJSQcunXa?usp=sharing](https://drive.google.com/drive/folders/1V31U7mK5aa4a3lQIWcrYhIeeRkvy5Qv8?usp=drive_link).
+2. Placez les dossiers extraits dans le répertoire `donnees`.
+
 ### Arborescence du Projet
-Le dépôt Git a été organisé de la manière suivante :
+L'arborescence finale est la suivante :
 ```text
 SDA_Projet_Maps/
 ├── doc/           # Documentation et rendu final
 │   ├── Rapport - Route Planning.pdf
 │   └── enonce_projet_sda.pdf
+├── donnees/       # <---- Partagé via Drive
+│   ├── aretes.csv
+│   ├── noeuds.csv
+│   └── ile-de-france-260403.osm.pbf
 │
 ├── en-tetes/       # Fichiers d'en-tête (.h)
 │   └── algos.h, analyzer.h, graph.h, tas.h
