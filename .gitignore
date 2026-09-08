@@ -8,5 +8,6 @@ compilation/
 *.o
 *.out
 *.plot
-
+resultats/
+moteur_gps
 .DS_Store
